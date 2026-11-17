@@ -5,28 +5,28 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
-from nsf_grant_intelligence import server
+from nsf_grant_intelligence import api, sampling, server, transform
 
 
 # --- helpers ---------------------------------------------------------------
 
 def test_to_int():
-    assert server._to_int("417136") == 417136
-    assert server._to_int("12.9") == 12
-    assert server._to_int(None) is None
-    assert server._to_int("n/a") is None
+    assert transform.to_int("417136") == 417136
+    assert transform.to_int("12.9") == 12
+    assert transform.to_int(None) is None
+    assert transform.to_int("n/a") is None
 
 
 def test_year():
-    assert server._year("03/15/2027") == 2027
-    assert server._year(None) is None
-    assert server._year("bad") is None
+    assert transform.year_of("03/15/2027") == 2027
+    assert transform.year_of(None) is None
+    assert transform.year_of("bad") is None
 
 
 def test_page_params_clamps_and_offsets():
-    assert server._page_params(1, 10) == {"rpp": 10, "offset": 0}
-    assert server._page_params(3, 10) == {"rpp": 10, "offset": 20}
-    assert server._page_params(0, 100) == {"rpp": 25, "offset": 0}
+    assert api.page_params(1, 10) == {"rpp": 10, "offset": 0}
+    assert api.page_params(3, 10) == {"rpp": 10, "offset": 20}
+    assert api.page_params(0, 100) == {"rpp": 25, "offset": 0}
 
 
 def test_trim_builds_compact_record():
@@ -41,7 +41,7 @@ def test_trim_builds_compact_record():
         "fundsObligatedAmt": "100",
         "abstractText": "abc " * 200,
     }
-    out = server._trim(a, abstract_len=10)
+    out = transform.trim_award(a, abstract_len=10)
     assert out["pi"] == "Ada Lovelace"
     assert out["location"] == "X, CA"
     assert out["funds_obligated_usd"] == 100
@@ -64,7 +64,7 @@ def fake_api(monkeypatch):
                 raise r
             return r
 
-        monkeypatch.setattr(server, "_api", _api)
+        monkeypatch.setattr(api, "request", _api)
         return calls
 
     return install
@@ -81,14 +81,14 @@ def test_search_awards_maps_params(fake_api):
 
 
 def test_search_awards_surfaces_errors(fake_api):
-    fake_api([server.NSFAPIError("boom")])
-    with pytest.raises(server.NSFAPIError, match="boom"):
+    fake_api([api.NSFAPIError("boom")])
+    with pytest.raises(api.NSFAPIError, match="boom"):
         asyncio.run(server.search_awards(keyword="x"))
 
 
 def test_get_award_not_found(fake_api):
     fake_api([{"award": []}])
-    with pytest.raises(server.NSFAPIError, match="No award found"):
+    with pytest.raises(api.NSFAPIError, match="No award found"):
         asyncio.run(server.get_award("123"))
 
 
@@ -109,8 +109,8 @@ def test_funding_trends_queries_each_year(fake_api):
 
 
 def test_funding_trends_surfaces_errors(fake_api):
-    fake_api([server.NSFAPIError("boom")])
-    with pytest.raises(server.NSFAPIError):
+    fake_api([api.NSFAPIError("boom")])
+    with pytest.raises(api.NSFAPIError):
         asyncio.run(server.funding_trends(keyword="ai", from_year=2025, to_year=2025))
 
 
@@ -136,14 +136,14 @@ def _first_year_only(resp):
 
 
 def test_pi_name_falls_back():
-    assert server._pi_name({"piFirstName": "Ada", "piLastName": "L"}) == "Ada L"
-    assert server._pi_name({"pdPIName": "Prog Dir"}) == "Prog Dir"
-    assert server._pi_name({}) == "Unknown"
+    assert transform.pi_name({"piFirstName": "Ada", "piLastName": "L"}) == "Ada L"
+    assert transform.pi_name({"pdPIName": "Prog Dir"}) == "Prog Dir"
+    assert transform.pi_name({}) == "Unknown"
 
 
 def test_stats_summarizes_awards():
     awards = [_award(1, 100), _award(2, 300, prog="Prog B", year=2026), _award(3, 200)]
-    s = server._stats(awards)
+    s = transform.award_stats(awards)
     assert s["awards_analyzed"] == 3
     assert s["total_funds_obligated_usd"] == 600
     assert s["median_award_usd"] == 200
@@ -152,7 +152,7 @@ def test_stats_summarizes_awards():
 
 
 def test_stats_empty():
-    s = server._stats([])
+    s = transform.award_stats([])
     assert s["median_award_usd"] is None
     assert s["total_funds_obligated_usd"] == 0
 
@@ -162,7 +162,7 @@ def test_collect_spreads_quota_across_years(fake_api):
         {"award": [_award(i, 1, year=2025) for i in range(25)]},
         {"award": [_award(i, 1, year=2026) for i in range(25)]},
     ])
-    out = asyncio.run(server._collect("ai", from_year=2025, max_awards=10, to_year=2026))
+    out = asyncio.run(sampling.collect("ai", from_year=2025, max_awards=10, to_year=2026))
     assert len(out) == 10
     # one request per year, each restricted to that year
     assert [(c["startDateStart"], c["startDateEnd"]) for c in calls] == [
@@ -174,7 +174,7 @@ def test_collect_spreads_quota_across_years(fake_api):
 
 
 def _year_of(a):
-    return server._year(a["startDate"])
+    return transform.year_of(a["startDate"])
 
 
 def test_collect_pages_within_year_zero_based(fake_api):
@@ -182,14 +182,14 @@ def test_collect_pages_within_year_zero_based(fake_api):
         {"award": [_award(i, 1) for i in range(25)]},
         {"award": [_award(99, 1)]},
     ])
-    out = asyncio.run(server._collect("ai", from_year=2025, max_awards=100, to_year=2025))
+    out = asyncio.run(sampling.collect("ai", from_year=2025, max_awards=100, to_year=2025))
     assert len(out) == 26
     assert [c["offset"] for c in calls] == [0, 25]
 
 
 def test_collect_moves_on_when_a_year_is_empty(fake_api):
     calls = fake_api([{"award": []}, {"award": [_award(1, 1, year=2026)]}])
-    out = asyncio.run(server._collect("ai", from_year=2025, max_awards=20, to_year=2026))
+    out = asyncio.run(sampling.collect("ai", from_year=2025, max_awards=20, to_year=2026))
     assert len(out) == 1
     assert len(calls) == 2
 
@@ -201,16 +201,16 @@ def test_collect_defaults_to_next_year(fake_api, monkeypatch):
             import datetime
             return datetime.date(2026, 11, 16)
 
-    monkeypatch.setattr(server, "date", FakeDate)
+    monkeypatch.setattr(sampling, "date", FakeDate)
     calls = fake_api([{"award": []}] * 3)
-    asyncio.run(server._collect("ai", from_year=2025, max_awards=30))
+    asyncio.run(sampling.collect("ai", from_year=2025, max_awards=30))
     assert [c["startDateStart"] for c in calls] == ["01/01/2025", "01/01/2026", "01/01/2027"]
 
 
 def test_collect_surfaces_errors(fake_api):
-    fake_api([server.NSFAPIError("boom")])
-    with pytest.raises(server.NSFAPIError):
-        asyncio.run(server._collect("ai", to_year=2025))
+    fake_api([api.NSFAPIError("boom")])
+    with pytest.raises(api.NSFAPIError):
+        asyncio.run(sampling.collect("ai", to_year=2025))
 
 
 def test_analyze_topic(fake_api):
@@ -222,8 +222,8 @@ def test_analyze_topic(fake_api):
 
 
 def test_analyze_topic_surfaces_errors(fake_api):
-    fake_api([server.NSFAPIError("boom")])
-    with pytest.raises(server.NSFAPIError):
+    fake_api([api.NSFAPIError("boom")])
+    with pytest.raises(api.NSFAPIError):
         asyncio.run(server.analyze_topic("ai"))
 
 
@@ -326,8 +326,8 @@ def test_tool_returns_structured_output(fake_api):
 
 @pytest.fixture
 def http(monkeypatch):
-    """Route server._api through a scripted httpx transport; returns the call log."""
-    monkeypatch.setattr(server, "RETRY_BASE_DELAY", 0)
+    """Route api.request through a scripted httpx transport; returns the call log."""
+    monkeypatch.setattr(api, "RETRY_BASE_DELAY", 0)
 
     def install(*steps):
         it = iter(steps)
@@ -341,7 +341,7 @@ def http(monkeypatch):
             return step
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-        monkeypatch.setattr(server, "_get_client", lambda: client)
+        monkeypatch.setattr(api, "_get_client", lambda: client)
         return log
 
     return install
@@ -353,44 +353,44 @@ def _ok(body):
 
 def test_api_retries_transient_status_then_succeeds(http):
     log = http(httpx.Response(503), httpx.Response(429, headers={"Retry-After": "0"}), _ok({"award": []}))
-    assert asyncio.run(server._api({})) == {"award": []}
+    assert asyncio.run(api.request({})) == {"award": []}
     assert len(log) == 3
 
 
 def test_api_retries_timeouts_then_gives_up(http):
     log = http(*[httpx.ReadTimeout("slow")] * 3)
-    with pytest.raises(server.NSFAPIError, match="unreachable"):
-        asyncio.run(server._api({}))
-    assert len(log) == server.MAX_ATTEMPTS
+    with pytest.raises(api.NSFAPIError, match="unreachable"):
+        asyncio.run(api.request({}))
+    assert len(log) == api.MAX_ATTEMPTS
 
 
 def test_api_does_not_retry_client_errors(http):
     log = http(httpx.Response(400))
-    with pytest.raises(server.NSFAPIError, match="HTTP 400"):
-        asyncio.run(server._api({}))
+    with pytest.raises(api.NSFAPIError, match="HTTP 400"):
+        asyncio.run(api.request({}))
     assert len(log) == 1
 
 
 def test_api_rejects_non_json_body(http):
     http(httpx.Response(200, text="<html>maintenance</html>"))
-    with pytest.raises(server.NSFAPIError, match="not valid JSON"):
-        asyncio.run(server._api({}))
+    with pytest.raises(api.NSFAPIError, match="not valid JSON"):
+        asyncio.run(api.request({}))
 
 
 def test_api_surfaces_service_notification(http):
     http(_ok({"serviceNotification": [{"notificationCode": "AwardAPI-004"}]}))
-    with pytest.raises(server.NSFAPIError, match="AwardAPI-004"):
-        asyncio.run(server._api({}))
+    with pytest.raises(api.NSFAPIError, match="AwardAPI-004"):
+        asyncio.run(api.request({}))
 
 
 # --- year-range guard & PI ambiguity -----------------------------------------
 
 def test_year_range_rejects_reversed_and_huge_spans():
-    assert server._year_range(2024, 2026) == [2024, 2025, 2026]
-    with pytest.raises(server.NSFAPIError, match="before"):
-        server._year_range(2026, 2024)
-    with pytest.raises(server.NSFAPIError, match="too wide"):
-        server._year_range(1990, 2026)
+    assert sampling.year_range(2024, 2026) == [2024, 2025, 2026]
+    with pytest.raises(api.NSFAPIError, match="before"):
+        sampling.year_range(2026, 2024)
+    with pytest.raises(api.NSFAPIError, match="too wide"):
+        sampling.year_range(1990, 2026)
 
 
 def test_pi_track_record_pages_and_flags_ambiguous_names(fake_api):

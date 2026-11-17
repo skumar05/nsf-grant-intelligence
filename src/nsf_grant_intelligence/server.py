@@ -1,41 +1,29 @@
 """
-NSF Grant Intelligence MCP server.
+NSF Grant Intelligence MCP server: tool definitions.
 
 Wraps the public, keyless NSF Award API (https://api.nsf.gov/services/v1)
 so an AI assistant can search 500k+ NSF awards, profile PIs and
-institutions, analyze funding trends, and mine what actually gets funded:
-funding stats per topic, which programs back it, who wins repeatedly,
-full abstracts of recent winners, and recurring themes in funded abstracts.
+institutions, analyze funding trends, and mine what actually gets funded.
 
-Run (stdio transport — point your MCP client at this command):
+Layout: api.py (HTTP + errors), sampling.py (per-year sampling),
+transform.py (pure helpers), models.py (Pydantic inputs/outputs), this file (tools).
+
+Run (stdio transport; point your MCP client at this command):
     .venv/bin/python -m nsf_grant_intelligence
 """
 
 from __future__ import annotations
 
-import asyncio
 import os
 import re
 from collections import Counter
-from datetime import date
-from statistics import median
-
-# Some environments put bracketed IPv6 literals (e.g. "[::1]") in no_proxy,
-# which httpx fails to parse. Strip just those entries; proxying itself is
-# otherwise left exactly as the environment configures it.
-for _var in ("no_proxy", "NO_PROXY"):
-    _val = os.environ.get(_var)
-    if _val and "[" in _val:
-        os.environ[_var] = ",".join(p for p in _val.split(",") if "[" not in p)
-
 from typing import Annotated
 
-import httpx
-from pydantic import Field
 from mcp.server.mcpserver import MCPServer
-from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
+from . import api, sampling
 from .models import (
     AwardDetail,
     AwardSearchResult,
@@ -60,236 +48,14 @@ from .models import (
     WinningAbstracts,
     YearFunding,
 )
+from .transform import STOPWORDS, award_stats, pi_name, to_int, trim_award, year_of
+
+PI_PAGES = 4  # pi_track_record scans up to this many pages of 25
 
 mcp = MCPServer("nsf-grant-intelligence")
 
 # Every tool only reads from a public third-party API.
 READ_ONLY = ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True)
-
-
-class NSFAPIError(ToolError):
-    """The NSF API failed or had nothing for the request.
-
-    A ToolError, so its message reaches the model (other exceptions are hidden from it).
-    """
-
-
-BASE_URL = "https://api.nsf.gov/services/v1"
-TIMEOUT = 30.0
-MAX_ATTEMPTS = 3  # total tries per request for transient failures
-RETRY_BASE_DELAY = 0.5  # seconds; doubles each retry (tests set this to 0)
-RETRY_STATUSES = {429, 500, 502, 503, 504}
-PI_PAGES = 4  # pi_track_record scans up to this many pages of 25
-MAX_YEAR_SPAN = 30  # per-year queries cost one API call each at minimum
-RPP = 25  # API page-size cap
-
-LIST_FIELDS = (
-    "id,title,piFirstName,piLastName,pdPIName,awardeeName,awardeeCity,"
-    "awardeeStateCode,fundsObligatedAmt,estimatedTotalAmt,startDate,expDate,"
-    "fundProgramName,primaryProgram"
-)
-DETAIL_FIELDS = LIST_FIELDS + ",abstractText,program,orgLongName,transType"
-ABSTRACT_FIELDS = LIST_FIELDS + ",abstractText"
-
-STOPWORDS = set(
-    """
-    a an the and or of to in for on with as by at from into through during
-    between out over under within without about than then so such
-    no nor not only own same these those this that will shall may can could
-    would should must have has had having are was were been being is it its
-    we our us they their them he she his her you your i me my
-    also which who whom whose what when where why how all any both each few
-    more most other some too very one two three first new using used use
-    based upon across high low large small major key core main primary
-    research project study program proposal award grant funded funding science
-    scientific nsf foundation national develop developed development provide
-    provides support supported including include includes significant advance
-    advances novel innovative address addresses aim aims goal goals objective
-    objectives impact broader merit intellectual work activities outcomes
-    """.split()
-)
-
-
-def _to_int(v) -> int | None:
-    try:
-        return int(float(v))
-    except (TypeError, ValueError):
-        return None
-
-
-def _year(d: str | None) -> int | None:
-    # API dates look like "03/15/2027"
-    try:
-        return int(d.split("/")[-1])
-    except (AttributeError, ValueError, IndexError):
-        return None
-
-
-def _pi_name(a: dict) -> str:
-    pi = f"{a.get('piFirstName') or ''} {a.get('piLastName') or ''}".strip()
-    return pi or (a.get("pdPIName") or "Unknown")
-
-
-def _trim(a: dict, abstract_len: int = 280) -> dict:
-    """Compact one award for list views (keeps context small)."""
-    pi = f"{a.get('piFirstName') or ''} {a.get('piLastName') or ''}".strip()
-    out = {
-        "award_id": a.get("id"),
-        "title": a.get("title"),
-        "pi": pi or a.get("pdPIName"),
-        "institution": a.get("awardeeName"),
-        "location": ", ".join(
-            x for x in (a.get("awardeeCity"), a.get("awardeeStateCode")) if x
-        ),
-        "funds_obligated_usd": _to_int(a.get("fundsObligatedAmt")),
-        "estimated_total_usd": _to_int(a.get("estimatedTotalAmt")),
-        "start_date": a.get("startDate"),
-        "end_date": a.get("expDate"),
-        "program": a.get("fundProgramName"),
-    }
-    if abstract_len and a.get("abstractText"):
-        out["abstract_snippet"] = a["abstractText"][:abstract_len].strip()
-    return out
-
-
-_client_state: dict = {"client": None, "loop": None}
-
-
-def _get_client() -> httpx.AsyncClient:
-    """One pooled client per event loop, so repeated calls reuse connections."""
-    loop = asyncio.get_running_loop()
-    client = _client_state["client"]
-    if client is None or client.is_closed or _client_state["loop"] is not loop:
-        client = httpx.AsyncClient(timeout=TIMEOUT)
-        _client_state.update(client=client, loop=loop)
-    return client
-
-
-def _retry_delay(attempt: int, response: httpx.Response | None) -> float:
-    retry_after = response.headers.get("Retry-After") if response is not None else None
-    if retry_after and retry_after.isdigit():
-        return min(float(retry_after), 10.0)
-    return RETRY_BASE_DELAY * 2**attempt
-
-
-async def _api(params: dict) -> dict:
-    """GET /awards.json and return its "response" object.
-
-    Retries timeouts, connection errors and 429/5xx with exponential backoff.
-    Raises NSFAPIError for anything else that goes wrong, including NSF's
-    habit of reporting bad requests as HTTP 200 with a serviceNotification.
-    """
-    for attempt in range(MAX_ATTEMPTS):
-        last_try = attempt == MAX_ATTEMPTS - 1
-        response = None
-        try:
-            response = await _get_client().get(f"{BASE_URL}/awards.json", params=params)
-            response.raise_for_status()
-            body = response.json().get("response", {})
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code not in RETRY_STATUSES or last_try:
-                raise NSFAPIError(f"NSF API returned HTTP {e.response.status_code}") from e
-        except httpx.TransportError as e:  # timeouts, connection resets, DNS
-            if last_try:
-                raise NSFAPIError(f"NSF API unreachable: {type(e).__name__}") from e
-        except ValueError as e:  # body was not JSON
-            raise NSFAPIError("NSF API returned a response that was not valid JSON") from e
-        else:
-            if notes := body.get("serviceNotification"):
-                raise NSFAPIError(
-                    f"NSF API rejected the request ({notes[0].get('notificationCode')}): "
-                    "check dates and filters."
-                )
-            return body
-        await asyncio.sleep(_retry_delay(attempt, response))
-    raise AssertionError("unreachable")  # pragma: no cover
-
-
-def _year_range(from_year: int, to_year: int | None) -> list[int]:
-    """Inclusive start-year range; to_year defaults to next year (NSF lists future awards)."""
-    if to_year is None:
-        to_year = date.today().year + 1
-    if to_year < from_year:
-        raise NSFAPIError(f"to_year ({to_year}) is before from_year ({from_year}).")
-    if to_year - from_year + 1 > MAX_YEAR_SPAN:
-        raise NSFAPIError(
-            f"Year range too wide ({to_year - from_year + 1} years, max {MAX_YEAR_SPAN}): "
-            "raise from_year."
-        )
-    return list(range(from_year, to_year + 1))
-
-
-def _page_params(page: int, per_page: int) -> dict:
-    per_page = max(1, min(per_page, 25))  # API caps rpp at 25
-    page = max(1, page)
-    return {"rpp": per_page, "offset": (page - 1) * per_page}  # offset is 0-based
-
-
-def _total_count(resp: dict) -> int | None:
-    # API reports the full match count in response.metadata (caps at 10,000)
-    return _to_int((resp.get("metadata") or {}).get("totalCount"))
-
-
-async def _collect(
-    keyword: str = "",
-    fund_program_name: str = "",
-    from_year: int = 2000,
-    max_awards: int = 100,
-    to_year: int | None = None,
-) -> list[dict]:
-    """Collect up to max_awards awards, spread evenly across start years.
-
-    The API returns newest start date first, so a plain capped scan would
-    fill up with the latest (often future-dated) awards. Instead each year in
-    from_year..to_year gets its own quota and its own date-restricted query.
-    to_year defaults to next year (NSF lists awards with future start dates).
-
-    Raises NSFAPIError on API failure.
-    """
-    years = _year_range(from_year, to_year)
-    quota = -(-max_awards // len(years))  # ceil: per-year share
-    out: list[dict] = []
-    for year in years:
-        got = 0
-        page = 0
-        while got < quota:
-            page += 1
-            params = {
-                "printFields": ABSTRACT_FIELDS,
-                "startDateStart": f"01/01/{year}",
-                "startDateEnd": f"12/31/{year}",
-                **_page_params(page, RPP),
-            }
-            if keyword:
-                params["keyword"] = keyword
-            if fund_program_name:
-                params["fundProgramName"] = fund_program_name
-            resp = await _api(params)
-            awards = resp.get("award", [])
-            out.extend(awards[: quota - got])
-            got += len(awards)
-            if len(awards) < RPP:
-                break
-    return out[:max_awards]
-
-
-def _stats(awards: list[dict]) -> dict:
-    amts = [x for x in (_to_int(a.get("fundsObligatedAmt")) for a in awards) if x]
-    years = Counter(_year(a.get("startDate")) for a in awards)
-    years.pop(None, None)
-    return {
-        "awards_analyzed": len(awards),
-        "total_funds_obligated_usd": sum(amts),
-        "median_award_usd": int(median(amts)) if amts else None,
-        "top_programs": Counter(
-            a.get("fundProgramName") or "Unknown" for a in awards
-        ).most_common(5),
-        "top_institutions": Counter(
-            a.get("awardeeName") or "Unknown" for a in awards
-        ).most_common(5),
-        "top_pis": Counter(_pi_name(a) for a in awards).most_common(5),
-        "awards_by_start_year": dict(sorted(years.items())),
-    }
 
 
 def _counts(pairs: list[tuple[str, int]]) -> list[NamedCount]:
@@ -317,7 +83,7 @@ async def search_awards(
     institution use awards_by_institution; for one known award ID use get_award.
     Results are newest start date first, not ranked by relevance.
     """
-    params = {"printFields": LIST_FIELDS, **_page_params(page, per_page)}
+    params = {"printFields": api.LIST_FIELDS, **api.page_params(page, per_page)}
     filters = {
         "keyword": keyword,
         "piFirstName": pi_first_name,
@@ -333,14 +99,14 @@ async def search_awards(
     if active_only:
         params["ActiveAwards"] = "true"  # API ignores lowercase "activeAwards"
 
-    resp = await _api(params)
+    resp = await api.request(params)
     awards = resp.get("award", [])
     return AwardSearchResult(
         page=page,
         per_page=per_page,
-        total_count=_total_count(resp),
+        total_count=api.total_count(resp),
         results_on_page=len(awards),
-        awards=[AwardSummary(**_trim(a)) for a in awards],
+        awards=[AwardSummary(**trim_award(a)) for a in awards],
     )
 
 
@@ -349,13 +115,13 @@ async def get_award(
     award_id: Annotated[str, Field(min_length=1, description='NSF award ID, e.g. "1753742".')],
 ) -> AwardDetail:
     """Full detail for one NSF award: complete abstract, directorate and award type."""
-    resp = await _api({"id": award_id, "printFields": DETAIL_FIELDS})
+    resp = await api.request({"id": award_id, "printFields": api.DETAIL_FIELDS})
     awards = resp.get("award", [])
     if not awards:
-        raise NSFAPIError(f"No award found with ID {award_id}")
+        raise api.NSFAPIError(f"No award found with ID {award_id}")
     a = awards[0]
     return AwardDetail(
-        **_trim(a, abstract_len=0),
+        **trim_award(a, abstract_len=0),
         abstract=a.get("abstractText"),
         program_detail=a.get("program"),
         nsf_directorate=a.get("orgLongName"),
@@ -414,7 +180,7 @@ async def funding_trends(
     10,000); the dollar figures come from a sample of up to
     max_pages x 25 awards shared across the years, so treat them as indicative.
     """
-    years = _year_range(from_year, to_year)
+    years = sampling.year_range(from_year, to_year)
     pages_per_year = max(1, max_pages // len(years))
     by_year: dict[int, YearFunding] = {}
     scanned = 0
@@ -426,19 +192,16 @@ async def funding_trends(
                 "printFields": "id,startDate,fundsObligatedAmt",
                 "startDateStart": f"01/01/{year}",
                 "startDateEnd": f"12/31/{year}",
-                **_page_params(page, RPP),
+                **api.page_params(page, api.RPP),
+                **api.text_filters(keyword, fund_program_name),
             }
-            if keyword:
-                params["keyword"] = keyword
-            if fund_program_name:
-                params["fundProgramName"] = fund_program_name
-            resp = await _api(params)
+            resp = await api.request(params)
             if total is None:
-                total = _total_count(resp)
+                total = api.total_count(resp)
             awards = resp.get("award", [])
             sampled += len(awards)
-            funds += sum(_to_int(a.get("fundsObligatedAmt")) or 0 for a in awards)
-            if len(awards) < RPP:
+            funds += sum(to_int(a.get("fundsObligatedAmt")) or 0 for a in awards)
+            if len(awards) < api.RPP:
                 break
         scanned += sampled
         if total or sampled:
@@ -467,8 +230,8 @@ async def analyze_topic(
 ) -> TopicAnalysis:
     """What NSF funds for a topic: total and median funding, top programs,
     institutions and PIs, and awards per start year (sampled, not a census)."""
-    awards = await _collect(keyword, fund_program_name, from_year, max_awards)
-    s = _stats(awards)
+    awards = await sampling.collect(keyword, fund_program_name, from_year, max_awards)
+    s = award_stats(awards)
     return TopicAnalysis(
         keyword=keyword,
         fund_program_name=fund_program_name or None,
@@ -492,20 +255,20 @@ async def sample_winning_abstracts(
 ) -> WinningAbstracts:
     """Full abstracts, PIs and amounts of the largest recent awards on a topic,
     to study how funded proposals are written."""
-    awards = await _collect(
+    awards = await sampling.collect(
         keyword, fund_program_name, from_year, max_awards=max(n * 3, 25)
     )
     # prefer the largest awards — they passed the toughest review
-    awards.sort(key=lambda a: _to_int(a.get("fundsObligatedAmt")) or 0, reverse=True)
+    awards.sort(key=lambda a: to_int(a.get("fundsObligatedAmt")) or 0, reverse=True)
     return WinningAbstracts(
         keyword=keyword,
         samples=[
             WinningAbstract(
                 award_id=a.get("id"),
                 title=a.get("title"),
-                pi=_pi_name(a),
+                pi=pi_name(a),
                 institution=a.get("awardeeName"),
-                funds_obligated_usd=_to_int(a.get("fundsObligatedAmt")),
+                funds_obligated_usd=to_int(a.get("fundsObligatedAmt")),
                 program=a.get("fundProgramName"),
                 start_date=a.get("startDate"),
                 abstract=(a.get("abstractText") or "").strip(),
@@ -524,11 +287,11 @@ async def compare_funding_by_program(
     ] = 150,
 ) -> ProgramComparison:
     """Which NSF programs fund a topic, ranked by dollars: where to submit a proposal."""
-    awards = await _collect(keyword, "", from_year, max_awards)
+    awards = await sampling.collect(keyword, "", from_year, max_awards)
     by_prog: dict[str, dict] = {}
     for a in awards:
         p = a.get("fundProgramName") or "Unknown"
-        amt = _to_int(a.get("fundsObligatedAmt")) or 0
+        amt = to_int(a.get("fundsObligatedAmt")) or 0
         b = by_prog.setdefault(p, {"awards": 0, "funds_obligated_usd": 0})
         b["awards"] += 1
         b["funds_obligated_usd"] += amt
@@ -555,27 +318,27 @@ async def pi_track_record(last_name: LastName, first_name: FirstName = "") -> PI
     total = None
     for page in range(1, PI_PAGES + 1):
         params = {
-            "printFields": LIST_FIELDS,
+            "printFields": api.LIST_FIELDS,
             "piLastName": last_name,
-            **_page_params(page, RPP),
+            **api.page_params(page, api.RPP),
         }
         if first_name:
             params["piFirstName"] = first_name
-        resp = await _api(params)
+        resp = await api.request(params)
         if total is None:
-            total = _total_count(resp)
+            total = api.total_count(resp)
         batch = resp.get("award", [])
         awards += batch
-        if len(batch) < RPP:
+        if len(batch) < api.RPP:
             break
-    amts = [x for x in (_to_int(a.get("fundsObligatedAmt")) for a in awards) if x]
-    years = sorted(y for y in (_year(a.get("startDate")) for a in awards) if y)
+    amts = [x for x in (to_int(a.get("fundsObligatedAmt")) for a in awards) if x]
+    years = sorted(y for y in (year_of(a.get("startDate")) for a in awards) if y)
     return PITrackRecord(
         pi=f"{first_name} {last_name}".strip(),
         awards_found=len(awards),
         total_matching_awards=total,
         total_funds_obligated_usd=sum(amts),
-        pi_names_matched=_counts(Counter(_pi_name(a) for a in awards).most_common(5)),
+        pi_names_matched=_counts(Counter(pi_name(a) for a in awards).most_common(5)),
         programs=_counts(
             Counter(a.get("fundProgramName") or "Unknown" for a in awards).most_common(5)
         ),
@@ -596,7 +359,7 @@ async def extract_themes(
 ) -> Themes:
     """Most frequent substantive terms across funded abstracts on a topic:
     the vocabulary successful proposals share."""
-    awards = await _collect(keyword, fund_program_name, from_year, max_awards=n)
+    awards = await sampling.collect(keyword, fund_program_name, from_year, max_awards=n)
     counts: Counter = Counter()
     for a in awards:
         text = (a.get("abstractText") or "").lower()
