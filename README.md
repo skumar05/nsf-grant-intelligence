@@ -88,11 +88,12 @@ Tests mock the NSF API and run offline.
 - **live**: 21 cases that call every tool through the MCP layer against the real NSF API
   (known-fact lookups, analysis invariants, error handling, invalid arguments), repeated
   3 times for consistency and latency.
-- **selection**: 15 prompts (11 in-scope, 4 out-of-scope or injection) checking that a Claude
-  model picks the right tool, or none. Needs `ANTHROPIC_API_KEY` (set it in a git-ignored `.env`; see `.env.example`) and `pip install -e ".[eval]"`.
-- **answer**: 12 questions an agent answers end to end, scored by two LLM judges (correctness against reference
+- **selection**: 25 prompts (18 in-scope, 7 out-of-scope or injection) checking that a Claude
+  model picks the right tool, or none, and passes the right arguments on 14 of them. Needs `ANTHROPIC_API_KEY` (set it in a git-ignored `.env`; see `.env.example`) and `pip install -e ".[eval]"`.
+- **answer**: 20 questions an agent answers end to end, scored by two LLM judges (correctness against reference
   answers taken from raw NSF API calls, and scope adherence), run with the tools and again with no tools as a
-  baseline. `eval/answer_eval.py`.
+  baseline. A second model (claude-opus-5-5) re-grades every answer, and `eval/JUDGE_REVIEW.md` lists items for a
+  human to audit. `eval/answer_eval.py`.
 
 ```bash
 .venv/bin/python eval/run_eval.py --repeats 3
