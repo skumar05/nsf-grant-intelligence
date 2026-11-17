@@ -71,9 +71,6 @@ deploy/lightsail-teardown.sh    # delete the service and stop billing
 Optional variables: `AWS_REGION` (default `us-east-1`), `SERVICE_NAME`, `POWER` (default `nano`, about
 $7/month), `SCALE`. The service is public with no authentication, so anyone with the URL can call the tools.
 
-`deploy/apprunner.sh` is also included, but AWS closed App Runner to new accounts on 30 April 2026, so it
-only works for accounts that already used the service.
-
 ## Test
 
 ```bash
