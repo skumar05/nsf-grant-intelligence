@@ -65,6 +65,22 @@ For other clients, use the venv's Python as the command with args `-m nsf_grant_
 
 Tests mock the NSF API and run offline.
 
+## Evaluation
+
+`eval/run_eval.py` runs two layers and writes `eval/RESULTS.md` and `eval/results.json`:
+
+- **live**: 14 cases that call every tool through the MCP layer against the real NSF API
+  (known-fact lookups, analysis invariants, error handling, invalid arguments), repeated
+  3 times for consistency and latency.
+- **selection**: 14 prompts (10 in-scope, 4 out-of-scope or injection) checking that a Claude
+  model picks the right tool, or none. Needs `ANTHROPIC_API_KEY` and `pip install -e ".[eval]"`.
+
+```bash
+.venv/bin/python eval/run_eval.py --repeats 3
+```
+
+Cases live in `eval/dataset.json`. Latest results: [eval/RESULTS.md](eval/RESULTS.md).
+
 ## Caveats
 
 - The API returns at most 25 results per page and reports match counts up to 10,000.

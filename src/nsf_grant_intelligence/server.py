@@ -301,55 +301,60 @@ async def funding_trends(
     keyword: str = "",
     fund_program_name: str = "",
     from_year: int = 2015,
-    to_year: int = 2026,
+    to_year: int | None = None,
     max_pages: int = 8,
 ) -> dict:
-    """Aggregate NSF funding by start year for a keyword/program.
+    """Award count and funding per start year for a keyword/program.
 
-    Pages through up to max_pages x 25 awards (API limit) — treat totals as a
-    strong sample, not an exhaustive census, for broad keywords.
+    Queries each year separately, so every year in the range is represented.
+    "awards" is the exact count the API reports for that year (capped at
+    10,000); the dollar figures come from a sample of up to
+    max_pages x 25 awards shared across the years, so treat them as indicative.
+    to_year defaults to next year (NSF lists awards with future start dates).
     """
+    if to_year is None:
+        to_year = date.today().year + 1
+    years = list(range(from_year, max(from_year, to_year) + 1))
+    pages_per_year = max(1, max_pages // len(years))
     by_year: dict[int, dict] = {}
     scanned = 0
-    total = None
-    for page in range(1, max_pages + 1):
-        params = {
-            "printFields": "id,startDate,fundsObligatedAmt",
-            # Restrict server-side so the sample is drawn from the requested years
-            "startDateStart": f"01/01/{from_year}",
-            "startDateEnd": f"12/31/{to_year}",
-            **_page_params(page, 25),
-        }
-        if keyword:
-            params["keyword"] = keyword
-        if fund_program_name:
-            params["fundProgramName"] = fund_program_name
-        resp = await _api(params)
-        if "_error" in resp:
-            return {"error": resp["_error"]}
-        if total is None:
-            total = _total_count(resp)
-        awards = resp.get("award", [])
-        if not awards:
-            break
-        scanned += len(awards)
-        for a in awards:
-            y = _year(a.get("startDate"))
-            if y is None or not (from_year <= y <= to_year):
-                continue
-            amt = _to_int(a.get("fundsObligatedAmt")) or 0
-            b = by_year.setdefault(y, {"awards": 0, "funds_obligated_usd": 0})
-            b["awards"] += 1
-            b["funds_obligated_usd"] += amt
-        if len(awards) < 25:
-            break
+    for year in years:
+        sampled = funds = 0
+        total = None
+        for page in range(1, pages_per_year + 1):
+            params = {
+                "printFields": "id,startDate,fundsObligatedAmt",
+                "startDateStart": f"01/01/{year}",
+                "startDateEnd": f"12/31/{year}",
+                **_page_params(page, RPP),
+            }
+            if keyword:
+                params["keyword"] = keyword
+            if fund_program_name:
+                params["fundProgramName"] = fund_program_name
+            resp = await _api(params)
+            if "_error" in resp:
+                return {"error": resp["_error"]}
+            if total is None:
+                total = _total_count(resp)
+            awards = resp.get("award", [])
+            sampled += len(awards)
+            funds += sum(_to_int(a.get("fundsObligatedAmt")) or 0 for a in awards)
+            if len(awards) < RPP:
+                break
+        scanned += sampled
+        if total or sampled:
+            by_year[year] = {
+                "awards": total if total is not None else sampled,
+                "sampled_awards": sampled,
+                "sampled_funds_obligated_usd": funds,
+            }
     return {
         "keyword": keyword or None,
         "fund_program_name": fund_program_name or None,
-        "years": dict(sorted(by_year.items())),
+        "years": by_year,
         "awards_scanned": scanned,
-        "total_matching_awards": total,
-        "note": "Sampled aggregation (API pages max 25 results); broad keywords undercount.",
+        "note": "Award counts are exact per year (max 10,000); dollar totals are sampled.",
     }
 
 

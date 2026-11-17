@@ -84,21 +84,25 @@ def test_get_award_not_found(fake_api):
     assert "error" in asyncio.run(server.get_award("123"))
 
 
-def test_funding_trends_aggregates_by_year(fake_api):
-    fake_api([{
-        "metadata": {"totalCount": "3"},
-        "award": [
-            {"startDate": "01/01/2025", "fundsObligatedAmt": "100"},
-            {"startDate": "06/01/2025", "fundsObligatedAmt": "50"},
-            {"startDate": "02/01/2026", "fundsObligatedAmt": "10"},
-        ],
-    }])
-    out = asyncio.run(server.funding_trends(keyword="ai", from_year=2025, to_year=2026))
+def test_funding_trends_queries_each_year(fake_api):
+    calls = fake_api([
+        {"metadata": {"totalCount": "300"},
+         "award": [{"fundsObligatedAmt": "100"}, {"fundsObligatedAmt": "50"}]},
+        {"metadata": {"totalCount": "0"}, "award": []},
+        {"metadata": {"totalCount": "7"}, "award": [{"fundsObligatedAmt": "10"}]},
+    ])
+    out = asyncio.run(server.funding_trends(keyword="ai", from_year=2024, to_year=2026))
+    assert [c["startDateStart"] for c in calls] == ["01/01/2024", "01/01/2025", "01/01/2026"]
     assert out["years"] == {
-        2025: {"awards": 2, "funds_obligated_usd": 150},
-        2026: {"awards": 1, "funds_obligated_usd": 10},
+        2024: {"awards": 300, "sampled_awards": 2, "sampled_funds_obligated_usd": 150},
+        2026: {"awards": 7, "sampled_awards": 1, "sampled_funds_obligated_usd": 10},
     }
     assert out["awards_scanned"] == 3
+
+
+def test_funding_trends_surfaces_errors(fake_api):
+    fake_api([{"_error": "boom"}])
+    assert asyncio.run(server.funding_trends(keyword="ai", from_year=2025, to_year=2025)) == {"error": "boom"}
 
 
 # --- proposal-analysis helpers & tools --------------------------------------
