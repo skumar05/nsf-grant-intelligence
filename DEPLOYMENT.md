@@ -34,15 +34,16 @@ The image is based on `python:3.13-slim` and runs as the non-root user `nobody`.
 
 Use **HTTP `GET /health`**, expecting status 200. Do not use `/` (it is an HTML page) or `/mcp` (it does not
 answer a plain `GET`; a browser request to it hangs). Suggested settings: interval 10 s, timeout 5 s,
-healthy threshold 2, unhealthy threshold 3. The container starts answering within a few seconds.
+healthy threshold 2, unhealthy threshold 3. The container started answering within about 6 seconds in our tests.
 
 ### Proxy and timeout settings
 
 MCP responses are sent as server-sent events (`Content-Type: text/event-stream`), so the load balancer or
-proxy must not buffer responses. Most tools answer in under a second, but the sampling tools
+proxy must not buffer responses. Single lookups answer in well under a second. The sampling tools
 (`analyze_topic`, `institution_profile`, `compare_funding_by_program`, `sample_winning_abstracts`,
-`extract_themes`, `funding_trends`) make many calls to NSF and can take 5 to 15 seconds. Set the request
-timeout and idle timeout to at least 60 seconds.
+`extract_themes`, `funding_trends`) make many calls to NSF and took up to about 5 seconds in our tests.
+Set the request timeout and idle timeout to at least 60 seconds, which leaves room for a slow NSF
+response or the server's built-in retries.
 
 ## Verify a deployment
 
