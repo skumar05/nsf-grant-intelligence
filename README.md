@@ -1,8 +1,10 @@
-# NSF Grant Intelligence
+# NSF Grant Intelligence MCP
 
-An [MCP](https://modelcontextprotocol.io) server that lets an AI assistant search and analyze
-500k+ National Science Foundation awards through the public, keyless
-[NSF Award API](https://www.research.gov/common/webapi/awardapisearch-v1.htm).
+An [MCP](https://modelcontextprotocol.io) server that puts 500k+ National Science Foundation
+awards at an AI assistant's fingertips: search awards, profile PIs and institutions, analyze
+funding trends, and study what winning proposals look like, all through natural-language
+tool calls. It uses the public, keyless
+[NSF Award API](https://www.research.gov/common/webapi/awardapisearch-v1.htm), so no API key is needed.
 
 ## Tools
 
