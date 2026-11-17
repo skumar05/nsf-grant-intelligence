@@ -32,6 +32,7 @@ from .models import (
     FirstName,
     FromYear,
     FundingTrends,
+    InstitutionProfile,
     Keyword,
     LastName,
     NamedCount,
@@ -79,8 +80,9 @@ async def search_awards(
 ) -> AwardSearchResult:
     """Search NSF awards with any combination of filters; returns a page of award summaries.
 
-    Use this for open-ended lookups. For one PI's history use awards_by_pi; for one
-    institution use awards_by_institution; for one known award ID use get_award.
+    Use this to list individual awards (open-ended lookups, one institution's awards,
+    one PI's awards). For one known award ID use get_award; for a researcher's totals
+    use pi_track_record; for an institution's totals use institution_profile.
     Results are newest start date first, not ranked by relevance.
     """
     params = {"printFields": api.LIST_FIELDS, **api.page_params(page, per_page)}
@@ -130,33 +132,36 @@ async def get_award(
 
 
 @mcp.tool(annotations=READ_ONLY)
-async def awards_by_pi(
-    last_name: LastName, first_name: FirstName = "", page: Page = 1, per_page: PerPage = 10
-) -> AwardSearchResult:
-    """List awards for a principal investigator, newest first (paged).
-
-    For a summary of totals, programs and span, use pi_track_record instead.
-    """
-    return await search_awards(
-        pi_first_name=first_name, pi_last_name=last_name, page=page, per_page=per_page
-    )
-
-
-@mcp.tool(annotations=READ_ONLY)
-async def awards_by_institution(
+async def institution_profile(
     name: Annotated[str, Field(min_length=1, description='Institution name, e.g. "Carnegie Mellon".')],
-    state_code: StateCode = "",
-    active_only: Annotated[bool, Field(description="Only currently active awards.")] = False,
-    page: Page = 1,
-    per_page: PerPage = 10,
-) -> AwardSearchResult:
-    """List NSF awards to an institution, newest first (paged)."""
-    return await search_awards(
-        awardee_name=name,
-        awardee_state_code=state_code,
-        active_only=active_only,
-        page=page,
-        per_page=per_page,
+    keyword: Annotated[
+        str, Field(description="Optional topic to focus on, e.g. 'robotics'.")
+    ] = "",
+    from_year: FromYear = 2020,
+    max_awards: Annotated[
+        int, Field(ge=1, le=300, description="Sample size, spread evenly across start years.")
+    ] = 100,
+) -> InstitutionProfile:
+    """How an institution does at NSF: funding totals, top programs, most-funded
+    PIs and awards per year, optionally for one topic (sampled, not a census).
+
+    To list that institution's individual awards, use search_awards with awardee_name.
+    """
+    awards = await sampling.collect(
+        keyword, "", from_year, max_awards, extra_filters={"awardeeName": name}
+    )
+    s = award_stats(awards)
+    return InstitutionProfile(
+        institution=name,
+        keyword=keyword or None,
+        from_year=from_year,
+        awards_analyzed=s["awards_analyzed"],
+        total_funds_obligated_usd=s["total_funds_obligated_usd"],
+        median_award_usd=s["median_award_usd"],
+        institution_names_matched=_counts(s["top_institutions"]),
+        top_programs=_counts(s["top_programs"]),
+        top_pis=_counts(s["top_pis"]),
+        awards_by_start_year=s["awards_by_start_year"],
     )
 
 
@@ -311,8 +316,9 @@ async def pi_track_record(last_name: LastName, first_name: FirstName = "") -> PI
     """Summary of a PI's NSF history: award count, total funding, programs,
     institutions and year span, from the 100 most recent matching awards.
 
-    Give first_name when you can: a last name alone can match several people,
-    which pi_names_matched makes visible.
+    Use this for any "who is / how funded is researcher X" question; it also lists
+    their 5 most recent awards. Give first_name when you can: a last name alone can
+    match several people, which pi_names_matched makes visible.
     """
     awards: list[dict] = []
     total = None
@@ -346,7 +352,7 @@ async def pi_track_record(last_name: LastName, first_name: FirstName = "") -> PI
             Counter(a.get("awardeeName") or "Unknown" for a in awards).most_common(3)
         ),
         year_span=[years[0], years[-1]] if years else None,
-        recent_titles=[a.get("title") for a in awards[:5]],
+        recent_awards=[AwardSummary(**trim_award(a, abstract_len=0)) for a in awards[:5]],
     )
 
 

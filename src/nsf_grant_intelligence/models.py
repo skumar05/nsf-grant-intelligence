@@ -140,10 +140,25 @@ class PITrackRecord(BaseModel):
     programs: list[NamedCount]
     institutions: list[NamedCount]
     year_span: list[int] | None
-    recent_titles: list[str | None]
+    recent_awards: list[AwardSummary] = Field(description="The 5 most recent matching awards.")
 
 
 class Themes(BaseModel):
     keyword: str
     abstracts_scanned: int
     top_terms: list[NamedCount]
+
+
+class InstitutionProfile(BaseModel):
+    institution: str
+    keyword: str | None
+    from_year: int
+    awards_analyzed: int
+    total_funds_obligated_usd: int
+    median_award_usd: int | None
+    institution_names_matched: list[NamedCount] = Field(
+        description="Distinct awardee names matched; the name filter is fuzzy."
+    )
+    top_programs: list[NamedCount]
+    top_pis: list[NamedCount]
+    awards_by_start_year: dict[int, int]

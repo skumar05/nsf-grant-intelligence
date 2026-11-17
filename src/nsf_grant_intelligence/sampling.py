@@ -33,6 +33,7 @@ async def collect(
     from_year: int = 2000,
     max_awards: int = 100,
     to_year: int | None = None,
+    extra_filters: dict | None = None,
 ) -> list[dict]:
     """Collect up to max_awards awards, spread evenly across start years.
 
@@ -41,6 +42,7 @@ async def collect(
     from_year..to_year gets its own quota and its own date-restricted query.
     to_year defaults to next year (NSF lists awards with future start dates).
 
+    extra_filters are added to every request (e.g. {"awardeeName": ...}).
     Raises NSFAPIError on API failure.
     """
     years = year_range(from_year, to_year)
@@ -57,6 +59,7 @@ async def collect(
                 "startDateEnd": f"12/31/{year}",
                 **api.page_params(page, api.RPP),
                 **api.text_filters(keyword, fund_program_name),
+                **(extra_filters or {}),
             }
             resp = await api.request(params)
             awards = resp.get("award", [])

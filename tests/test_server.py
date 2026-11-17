@@ -262,7 +262,7 @@ def test_pi_track_record(fake_api):
     assert out.total_funds_obligated_usd == 300
     assert out.year_span == [2019, 2024]
     assert out.total_matching_awards == 40
-    assert out.recent_titles == ["T1", "T2"]
+    assert [a.title for a in out.recent_awards] == ["T1", "T2"]
 
 
 def test_pi_track_record_no_awards(fake_api):
@@ -289,7 +289,7 @@ def test_extract_themes_counts_terms_and_skips_stopwords(fake_api):
 
 def test_every_tool_is_read_only_and_described():
     tools = asyncio.run(server.mcp.list_tools())
-    assert len(tools) == 10
+    assert len(tools) == 9
     for t in tools:
         assert t.annotations.read_only_hint is True
         assert len(t.description) > 40, t.name
@@ -403,3 +403,21 @@ def test_pi_track_record_pages_and_flags_ambiguous_names(fake_api):
     assert [c["offset"] for c in calls] == [0, 25]
     assert out.awards_found == 26
     assert {n.name for n in out.pi_names_matched} == {"Ada Smith", "Bob Smith"}
+
+
+def test_institution_profile_filters_by_awardee_and_summarizes(fake_api):
+    calls = fake_api(_first_year_only({"award": [
+        _award(1, 100, pi=("Ada", "Lovelace")),
+        _award(2, 50, pi=("Ada", "Lovelace")),
+    ]}))
+    out = asyncio.run(server.institution_profile("Univ", keyword="robotics", from_year=2025))
+    assert all(c["awardeeName"] == "Univ" and c["keyword"] == "robotics" for c in calls)
+    assert out.total_funds_obligated_usd == 150
+    assert out.top_pis[0].name == "Ada Lovelace" and out.top_pis[0].count == 2
+    assert out.institution_names_matched[0].name == "Univ"
+
+
+def test_overlapping_wrapper_tools_are_gone():
+    names = {t.name for t in asyncio.run(server.mcp.list_tools())}
+    assert not {"awards_by_pi", "awards_by_institution"} & names
+    assert {"search_awards", "pi_track_record", "institution_profile"} <= names

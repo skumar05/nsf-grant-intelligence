@@ -14,9 +14,8 @@ tool calls. It uses the public, keyless
 |---|---|
 | `search_awards` | Search by keyword, PI, institution, city/state, program, start-date range, active status |
 | `get_award` | Full detail (abstract, directorate, award type) for one award ID |
-| `awards_by_pi` | Funding history of a principal investigator |
-| `awards_by_institution` | Awards to an institution, optionally active only |
-| `funding_trends` | Award count and obligated dollars per start year for a keyword or program (sampled) |
+| `funding_trends` | Exact award count per start year, plus sampled dollars, for a keyword or program |
+| `institution_profile` | How an institution does at NSF: totals, top programs and PIs, awards per year, optionally for one topic |
 
 ### Winning-proposal analysis
 
@@ -28,7 +27,7 @@ These mine what actually gets funded. Each samples awards from `from_year` onwar
 | `analyze_topic` | Award stats for a topic: total and median funding, top programs, institutions and PIs, awards per start year |
 | `sample_winning_abstracts` | Full abstracts, PIs and amounts of the largest recent awards, to study how winning proposals read |
 | `compare_funding_by_program` | Which NSF programs fund a topic, ranked by dollars, to see where to submit |
-| `pi_track_record` | A PI's NSF history: award count, total funding, programs, institutions, year span |
+| `pi_track_record` | A PI's NSF history: award count, total funding, programs, institutions, year span, recent awards, and which distinct names matched |
 | `extract_themes` | Most frequent substantive terms across funded abstracts for a topic |
 
 Example prompts: "What does NSF fund in quantum sensing since 2023?", "Show me
@@ -69,10 +68,10 @@ Tests mock the NSF API and run offline.
 
 `eval/run_eval.py` runs two layers and writes `eval/RESULTS.md` and `eval/results.json`:
 
-- **live**: 19 cases that call every tool through the MCP layer against the real NSF API
+- **live**: 20 cases that call every tool through the MCP layer against the real NSF API
   (known-fact lookups, analysis invariants, error handling, invalid arguments), repeated
   3 times for consistency and latency.
-- **selection**: 14 prompts (10 in-scope, 4 out-of-scope or injection) checking that a Claude
+- **selection**: 15 prompts (11 in-scope, 4 out-of-scope or injection) checking that a Claude
   model picks the right tool, or none. Needs `ANTHROPIC_API_KEY` and `pip install -e ".[eval]"`.
 
 ```bash
