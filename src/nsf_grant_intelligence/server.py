@@ -487,7 +487,21 @@ async def extract_themes(
 
 
 def main() -> None:
-    mcp.run()
+    """Run over stdio by default; set MCP_TRANSPORT=streamable-http to host it.
+
+    Hosted config (all optional): HOST (default 0.0.0.0), PORT (default 8000).
+    The MCP endpoint is served at /mcp, stateless so it scales horizontally.
+    """
+    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+    if transport == "stdio":
+        mcp.run()
+    else:
+        mcp.run(
+            transport,
+            host=os.environ.get("HOST", "0.0.0.0"),
+            port=int(os.environ.get("PORT", "8000")),
+            stateless_http=True,
+        )
 
 
 if __name__ == "__main__":
