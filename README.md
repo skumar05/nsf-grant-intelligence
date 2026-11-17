@@ -56,6 +56,20 @@ The server speaks MCP over stdio:
 It's already registered for Claude Code (`.mcp.json`) and VS Code (`.vscode/mcp.json`).
 For other clients, use the venv's Python as the command with args `-m nsf_grant_intelligence`.
 
+## Deploy to AWS App Runner
+
+`deploy/apprunner.sh` builds the image (`linux/amd64`), pushes it to ECR, creates the IAM role App Runner
+needs to pull it, and creates or updates the service with an HTTP health check on `/health`. It needs the
+`aws` CLI with credentials, and a running Docker daemon.
+
+```bash
+DRY_RUN=1 deploy/apprunner.sh   # print every command without running anything
+deploy/apprunner.sh             # deploy; prints the MCP endpoint, https://<service-url>/mcp
+```
+
+Optional variables: `AWS_REGION` (default `us-east-1`), `SERVICE_NAME`, `CPU`, `MEMORY`. The service is
+public with no authentication, so anyone with the URL can call the tools.
+
 ## Test
 
 ```bash
