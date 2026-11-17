@@ -56,19 +56,23 @@ The server speaks MCP over stdio:
 It's already registered for Claude Code (`.mcp.json`) and VS Code (`.vscode/mcp.json`).
 For other clients, use the venv's Python as the command with args `-m nsf_grant_intelligence`.
 
-## Deploy to AWS App Runner
+## Deploy to AWS Lightsail Containers
 
-`deploy/apprunner.sh` builds the image (`linux/amd64`), pushes it to ECR, creates the IAM role App Runner
-needs to pull it, and creates or updates the service with an HTTP health check on `/health`. It needs the
-`aws` CLI with credentials, and a running Docker daemon.
+`deploy/lightsail.sh` builds the image (`linux/amd64`), pushes it to Lightsail, and creates or updates a
+container service with an HTTPS endpoint and an HTTP health check on `/health`. It needs the `aws` CLI with
+credentials, a running Docker daemon, and the `lightsailctl` plugin (the script prints the install command).
 
 ```bash
-DRY_RUN=1 deploy/apprunner.sh   # print every command without running anything
-deploy/apprunner.sh             # deploy; prints the MCP endpoint, https://<service-url>/mcp
+DRY_RUN=1 deploy/lightsail.sh   # print every command without running anything
+deploy/lightsail.sh             # deploy; prints the MCP endpoint, https://<service-url>/mcp
+deploy/lightsail-teardown.sh    # delete the service and stop billing
 ```
 
-Optional variables: `AWS_REGION` (default `us-east-1`), `SERVICE_NAME`, `CPU`, `MEMORY`. The service is
-public with no authentication, so anyone with the URL can call the tools.
+Optional variables: `AWS_REGION` (default `us-east-1`), `SERVICE_NAME`, `POWER` (default `nano`, about
+$7/month), `SCALE`. The service is public with no authentication, so anyone with the URL can call the tools.
+
+`deploy/apprunner.sh` is also included, but AWS closed App Runner to new accounts on 30 April 2026, so it
+only works for accounts that already used the service.
 
 ## Test
 
