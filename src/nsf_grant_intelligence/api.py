@@ -112,3 +112,12 @@ def text_filters(keyword: str, fund_program_name: str) -> dict:
     """Query params for the optional keyword / program filters shared by the sampling tools."""
     filters = {"keyword": keyword, "fundProgramName": fund_program_name}
     return {k: v for k, v in filters.items() if v}
+
+
+def phrase(text: str) -> str:
+    """Quote a name so the API matches it as one phrase.
+
+    Unquoted multi-word awardeeName values are matched word by word, so
+    "Carnegie Mellon University" returns every institution with "University" in its name.
+    """
+    return f'"{text.strip().strip(chr(34))}"'

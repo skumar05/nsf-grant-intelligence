@@ -411,7 +411,7 @@ def test_institution_profile_filters_by_awardee_and_summarizes(fake_api):
         _award(2, 50, pi=("Ada", "Lovelace")),
     ]}))
     out = asyncio.run(server.institution_profile("Univ", keyword="robotics", from_year=2025))
-    assert all(c["awardeeName"] == "Univ" and c["keyword"] == "robotics" for c in calls)
+    assert all(c["awardeeName"] == '"Univ"' and c["keyword"] == "robotics" for c in calls)
     assert out.total_funds_obligated_usd == 150
     assert out.top_pis[0].name == "Ada Lovelace" and out.top_pis[0].count == 2
     assert out.institution_names_matched[0].name == "Univ"
@@ -421,3 +421,13 @@ def test_overlapping_wrapper_tools_are_gone():
     names = {t.name for t in asyncio.run(server.mcp.list_tools())}
     assert not {"awards_by_pi", "awards_by_institution"} & names
     assert {"search_awards", "pi_track_record", "institution_profile"} <= names
+
+
+def test_institution_names_are_sent_as_quoted_phrases(fake_api):
+    calls = fake_api([{"award": []}] * 4)
+    asyncio.run(server.search_awards(awardee_name="Carnegie Mellon University"))
+    asyncio.run(server.search_awards(awardee_name='"Johns Hopkins"'))
+    asyncio.run(server.institution_profile("Rochester", from_year=2027, max_awards=1))
+    assert calls[0]["awardeeName"] == '"Carnegie Mellon University"'
+    assert calls[1]["awardeeName"] == '"Johns Hopkins"'
+    assert calls[2]["awardeeName"] == '"Rochester"'

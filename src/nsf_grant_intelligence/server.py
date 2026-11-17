@@ -69,7 +69,9 @@ async def search_awards(
     pi_first_name: FirstName = "",
     pi_last_name: Annotated[str, Field(description="PI last name. Optional.")] = "",
     awardee_name: Annotated[str, Field(description="Institution name, e.g. 'Carnegie Mellon'.")] = "",
-    awardee_city: Annotated[str, Field(description="Institution city.")] = "",
+    awardee_city: Annotated[
+        str, Field(description="Institution city. Matching is loose (any word of the city).")
+    ] = "",
     awardee_state_code: StateCode = "",
     fund_program_name: ProgramName = "",
     active_only: Annotated[bool, Field(description="Only currently active awards.")] = False,
@@ -90,7 +92,7 @@ async def search_awards(
         "keyword": keyword,
         "piFirstName": pi_first_name,
         "piLastName": pi_last_name,
-        "awardeeName": awardee_name,
+        "awardeeName": api.phrase(awardee_name) if awardee_name else "",
         "awardeeCity": awardee_city,
         "awardeeStateCode": awardee_state_code,
         "fundProgramName": fund_program_name,
@@ -148,7 +150,7 @@ async def institution_profile(
     To list that institution's individual awards, use search_awards with awardee_name.
     """
     awards = await sampling.collect(
-        keyword, "", from_year, max_awards, extra_filters={"awardeeName": name}
+        keyword, "", from_year, max_awards, extra_filters={"awardeeName": api.phrase(name)}
     )
     s = award_stats(awards)
     return InstitutionProfile(

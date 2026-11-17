@@ -68,7 +68,7 @@ Tests mock the NSF API and run offline.
 
 `eval/run_eval.py` runs two layers and writes `eval/RESULTS.md` and `eval/results.json`:
 
-- **live**: 20 cases that call every tool through the MCP layer against the real NSF API
+- **live**: 21 cases that call every tool through the MCP layer against the real NSF API
   (known-fact lookups, analysis invariants, error handling, invalid arguments), repeated
   3 times for consistency and latency.
 - **selection**: 15 prompts (11 in-scope, 4 out-of-scope or injection) checking that a Claude
