@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "nsf-grant-intelligence": {
+      "type": "stdio",
+      "command": "/Users/saurabhkumar/Documents/AI/MCP Hackathon/NSF/.venv/bin/python",
+      "args": ["-m", "nsf_grant_intelligence"]
+    }
+  }
+}
