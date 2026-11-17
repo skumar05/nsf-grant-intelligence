@@ -13,6 +13,7 @@ Run (stdio transport — point your MCP client at this command):
 
 from __future__ import annotations
 
+import asyncio
 import os
 import re
 from collections import Counter
@@ -75,6 +76,11 @@ class NSFAPIError(ToolError):
 
 BASE_URL = "https://api.nsf.gov/services/v1"
 TIMEOUT = 30.0
+MAX_ATTEMPTS = 3  # total tries per request for transient failures
+RETRY_BASE_DELAY = 0.5  # seconds; doubles each retry (tests set this to 0)
+RETRY_STATUSES = {429, 500, 502, 503, 504}
+PI_PAGES = 4  # pi_track_record scans up to this many pages of 25
+MAX_YEAR_SPAN = 30  # per-year queries cost one API call each at minimum
 RPP = 25  # API page-size cap
 
 LIST_FIELDS = (
@@ -146,14 +152,71 @@ def _trim(a: dict, abstract_len: int = 280) -> dict:
     return out
 
 
+_client_state: dict = {"client": None, "loop": None}
+
+
+def _get_client() -> httpx.AsyncClient:
+    """One pooled client per event loop, so repeated calls reuse connections."""
+    loop = asyncio.get_running_loop()
+    client = _client_state["client"]
+    if client is None or client.is_closed or _client_state["loop"] is not loop:
+        client = httpx.AsyncClient(timeout=TIMEOUT)
+        _client_state.update(client=client, loop=loop)
+    return client
+
+
+def _retry_delay(attempt: int, response: httpx.Response | None) -> float:
+    retry_after = response.headers.get("Retry-After") if response is not None else None
+    if retry_after and retry_after.isdigit():
+        return min(float(retry_after), 10.0)
+    return RETRY_BASE_DELAY * 2**attempt
+
+
 async def _api(params: dict) -> dict:
-    try:
-        async with httpx.AsyncClient(timeout=TIMEOUT) as c:
-            r = await c.get(f"{BASE_URL}/awards.json", params=params)
-            r.raise_for_status()
-            return r.json().get("response", {})
-    except httpx.HTTPError as e:
-        raise NSFAPIError(f"NSF API request failed: {e}") from e
+    """GET /awards.json and return its "response" object.
+
+    Retries timeouts, connection errors and 429/5xx with exponential backoff.
+    Raises NSFAPIError for anything else that goes wrong, including NSF's
+    habit of reporting bad requests as HTTP 200 with a serviceNotification.
+    """
+    for attempt in range(MAX_ATTEMPTS):
+        last_try = attempt == MAX_ATTEMPTS - 1
+        response = None
+        try:
+            response = await _get_client().get(f"{BASE_URL}/awards.json", params=params)
+            response.raise_for_status()
+            body = response.json().get("response", {})
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code not in RETRY_STATUSES or last_try:
+                raise NSFAPIError(f"NSF API returned HTTP {e.response.status_code}") from e
+        except httpx.TransportError as e:  # timeouts, connection resets, DNS
+            if last_try:
+                raise NSFAPIError(f"NSF API unreachable: {type(e).__name__}") from e
+        except ValueError as e:  # body was not JSON
+            raise NSFAPIError("NSF API returned a response that was not valid JSON") from e
+        else:
+            if notes := body.get("serviceNotification"):
+                raise NSFAPIError(
+                    f"NSF API rejected the request ({notes[0].get('notificationCode')}): "
+                    "check dates and filters."
+                )
+            return body
+        await asyncio.sleep(_retry_delay(attempt, response))
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
+def _year_range(from_year: int, to_year: int | None) -> list[int]:
+    """Inclusive start-year range; to_year defaults to next year (NSF lists future awards)."""
+    if to_year is None:
+        to_year = date.today().year + 1
+    if to_year < from_year:
+        raise NSFAPIError(f"to_year ({to_year}) is before from_year ({from_year}).")
+    if to_year - from_year + 1 > MAX_YEAR_SPAN:
+        raise NSFAPIError(
+            f"Year range too wide ({to_year - from_year + 1} years, max {MAX_YEAR_SPAN}): "
+            "raise from_year."
+        )
+    return list(range(from_year, to_year + 1))
 
 
 def _page_params(page: int, per_page: int) -> dict:
@@ -183,9 +246,7 @@ async def _collect(
 
     Raises NSFAPIError on API failure.
     """
-    if to_year is None:
-        to_year = date.today().year + 1
-    years = list(range(from_year, max(from_year, to_year) + 1))
+    years = _year_range(from_year, to_year)
     quota = -(-max_awards // len(years))  # ceil: per-year share
     out: list[dict] = []
     for year in years:
@@ -353,9 +414,7 @@ async def funding_trends(
     10,000); the dollar figures come from a sample of up to
     max_pages x 25 awards shared across the years, so treat them as indicative.
     """
-    if to_year is None:
-        to_year = date.today().year + 1
-    years = list(range(from_year, max(from_year, to_year) + 1))
+    years = _year_range(from_year, to_year)
     pages_per_year = max(1, max_pages // len(years))
     by_year: dict[int, YearFunding] = {}
     scanned = 0
@@ -487,19 +546,36 @@ async def compare_funding_by_program(
 @mcp.tool(annotations=READ_ONLY)
 async def pi_track_record(last_name: LastName, first_name: FirstName = "") -> PITrackRecord:
     """Summary of a PI's NSF history: award count, total funding, programs,
-    institutions and year span. Uses the 25 most recent matches only."""
-    params = {"printFields": LIST_FIELDS, "piLastName": last_name, **_page_params(1, RPP)}
-    if first_name:
-        params["piFirstName"] = first_name
-    resp = await _api(params)
-    awards = resp.get("award", [])
+    institutions and year span, from the 100 most recent matching awards.
+
+    Give first_name when you can: a last name alone can match several people,
+    which pi_names_matched makes visible.
+    """
+    awards: list[dict] = []
+    total = None
+    for page in range(1, PI_PAGES + 1):
+        params = {
+            "printFields": LIST_FIELDS,
+            "piLastName": last_name,
+            **_page_params(page, RPP),
+        }
+        if first_name:
+            params["piFirstName"] = first_name
+        resp = await _api(params)
+        if total is None:
+            total = _total_count(resp)
+        batch = resp.get("award", [])
+        awards += batch
+        if len(batch) < RPP:
+            break
     amts = [x for x in (_to_int(a.get("fundsObligatedAmt")) for a in awards) if x]
     years = sorted(y for y in (_year(a.get("startDate")) for a in awards) if y)
     return PITrackRecord(
         pi=f"{first_name} {last_name}".strip(),
         awards_found=len(awards),
-        total_matching_awards=_total_count(resp),
+        total_matching_awards=total,
         total_funds_obligated_usd=sum(amts),
+        pi_names_matched=_counts(Counter(_pi_name(a) for a in awards).most_common(5)),
         programs=_counts(
             Counter(a.get("fundProgramName") or "Unknown" for a in awards).most_common(5)
         ),

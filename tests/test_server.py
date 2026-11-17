@@ -1,5 +1,7 @@
 import asyncio
 
+import httpx
+
 import pytest
 from pydantic import ValidationError
 
@@ -318,3 +320,86 @@ def test_tool_returns_structured_output(fake_api):
     fake_api([{"metadata": {"totalCount": "1"}, "award": [{"id": "9", "title": "T"}]}])
     result = asyncio.run(server.mcp.call_tool("search_awards", {"keyword": "ai"}))
     assert result.structured_content["awards"][0]["award_id"] == "9"
+
+
+# --- _api: retries, bad bodies, NSF's 200-with-error convention ----------------
+
+@pytest.fixture
+def http(monkeypatch):
+    """Route server._api through a scripted httpx transport; returns the call log."""
+    monkeypatch.setattr(server, "RETRY_BASE_DELAY", 0)
+
+    def install(*steps):
+        it = iter(steps)
+        log = []
+
+        def handler(request):
+            log.append(request)
+            step = next(it)
+            if isinstance(step, Exception):
+                raise step
+            return step
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        monkeypatch.setattr(server, "_get_client", lambda: client)
+        return log
+
+    return install
+
+
+def _ok(body):
+    return httpx.Response(200, json={"response": body})
+
+
+def test_api_retries_transient_status_then_succeeds(http):
+    log = http(httpx.Response(503), httpx.Response(429, headers={"Retry-After": "0"}), _ok({"award": []}))
+    assert asyncio.run(server._api({})) == {"award": []}
+    assert len(log) == 3
+
+
+def test_api_retries_timeouts_then_gives_up(http):
+    log = http(*[httpx.ReadTimeout("slow")] * 3)
+    with pytest.raises(server.NSFAPIError, match="unreachable"):
+        asyncio.run(server._api({}))
+    assert len(log) == server.MAX_ATTEMPTS
+
+
+def test_api_does_not_retry_client_errors(http):
+    log = http(httpx.Response(400))
+    with pytest.raises(server.NSFAPIError, match="HTTP 400"):
+        asyncio.run(server._api({}))
+    assert len(log) == 1
+
+
+def test_api_rejects_non_json_body(http):
+    http(httpx.Response(200, text="<html>maintenance</html>"))
+    with pytest.raises(server.NSFAPIError, match="not valid JSON"):
+        asyncio.run(server._api({}))
+
+
+def test_api_surfaces_service_notification(http):
+    http(_ok({"serviceNotification": [{"notificationCode": "AwardAPI-004"}]}))
+    with pytest.raises(server.NSFAPIError, match="AwardAPI-004"):
+        asyncio.run(server._api({}))
+
+
+# --- year-range guard & PI ambiguity -----------------------------------------
+
+def test_year_range_rejects_reversed_and_huge_spans():
+    assert server._year_range(2024, 2026) == [2024, 2025, 2026]
+    with pytest.raises(server.NSFAPIError, match="before"):
+        server._year_range(2026, 2024)
+    with pytest.raises(server.NSFAPIError, match="too wide"):
+        server._year_range(1990, 2026)
+
+
+def test_pi_track_record_pages_and_flags_ambiguous_names(fake_api):
+    calls = fake_api([
+        {"metadata": {"totalCount": "30"},
+         "award": [_award(i, 1, pi=("Ada", "Smith")) for i in range(25)]},
+        {"award": [_award(99, 1, pi=("Bob", "Smith"))]},
+    ])
+    out = asyncio.run(server.pi_track_record("Smith"))
+    assert [c["offset"] for c in calls] == [0, 25]
+    assert out.awards_found == 26
+    assert {n.name for n in out.pi_names_matched} == {"Ada Smith", "Bob Smith"}

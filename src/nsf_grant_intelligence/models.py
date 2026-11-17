@@ -134,6 +134,9 @@ class PITrackRecord(BaseModel):
     awards_found: int
     total_matching_awards: int | None
     total_funds_obligated_usd: int
+    pi_names_matched: list[NamedCount] = Field(
+        description="Distinct PI names in the matches; more than one means the name is ambiguous."
+    )
     programs: list[NamedCount]
     institutions: list[NamedCount]
     year_span: list[int] | None
