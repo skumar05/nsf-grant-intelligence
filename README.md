@@ -72,7 +72,7 @@ Tests mock the NSF API and run offline.
   (known-fact lookups, analysis invariants, error handling, invalid arguments), repeated
   3 times for consistency and latency.
 - **selection**: 15 prompts (11 in-scope, 4 out-of-scope or injection) checking that a Claude
-  model picks the right tool, or none. Needs `ANTHROPIC_API_KEY` and `pip install -e ".[eval]"`.
+  model picks the right tool, or none. Needs `ANTHROPIC_API_KEY` (set it in a git-ignored `.env`; see `.env.example`) and `pip install -e ".[eval]"`.
 
 ```bash
 .venv/bin/python eval/run_eval.py --repeats 3
