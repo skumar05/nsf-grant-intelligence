@@ -439,3 +439,32 @@ def test_health_endpoint_reports_ok():
     with TestClient(server.mcp.streamable_http_app()) as client:
         r = client.get("/health")
     assert r.status_code == 200 and r.json() == {"status": "ok"}
+
+
+def test_landing_page_lists_tools_and_the_mcp_url():
+    from starlette.testclient import TestClient
+
+    with TestClient(server.mcp.streamable_http_app(), base_url="https://demo.example.com") as client:
+        r = client.get("/", headers={"x-forwarded-proto": "https"})
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
+    assert "https://demo.example.com/mcp" in r.text
+    names = [t.name for t in asyncio.run(server.mcp.list_tools())]
+    assert all(f"<code>{n}</code>" in r.text for n in names)
+
+
+def test_landing_page_escapes_host_header():
+    from starlette.testclient import TestClient
+
+    with TestClient(server.mcp.streamable_http_app()) as client:
+        r = client.get("/", headers={"host": "x\"><script>alert(1)</script>"})
+    assert "<script>alert(1)" not in r.text
+
+
+def test_landing_page_descriptions_are_whole_sentences():
+    from starlette.testclient import TestClient
+
+    with TestClient(server.mcp.streamable_http_app()) as client:
+        r = client.get("/")
+    for tool in asyncio.run(server.mcp.list_tools()):
+        first = " ".join(tool.description.strip().split("\n\n")[0].split())
+        assert first.replace("'", "&#x27;") in r.text, tool.name
