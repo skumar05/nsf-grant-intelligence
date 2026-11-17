@@ -22,6 +22,8 @@ from typing import Annotated
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import Field
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from . import api, sampling
 from .models import (
@@ -57,6 +59,12 @@ mcp = MCPServer("nsf-grant-intelligence")
 
 # Every tool only reads from a public third-party API.
 READ_ONLY = ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True)
+
+
+@mcp.custom_route("/health", methods=["GET"])
+async def health(request: Request) -> JSONResponse:
+    """Liveness probe for load balancers and container platforms (HTTP transport only)."""
+    return JSONResponse({"status": "ok"})
 
 
 def _counts(pairs: list[tuple[str, int]]) -> list[NamedCount]:

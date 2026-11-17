@@ -431,3 +431,11 @@ def test_institution_names_are_sent_as_quoted_phrases(fake_api):
     assert calls[0]["awardeeName"] == '"Carnegie Mellon University"'
     assert calls[1]["awardeeName"] == '"Johns Hopkins"'
     assert calls[2]["awardeeName"] == '"Rochester"'
+
+
+def test_health_endpoint_reports_ok():
+    from starlette.testclient import TestClient
+
+    with TestClient(server.mcp.streamable_http_app()) as client:
+        r = client.get("/health")
+    assert r.status_code == 200 and r.json() == {"status": "ok"}
