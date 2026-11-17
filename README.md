@@ -6,6 +6,8 @@ An [MCP](https://modelcontextprotocol.io) server that lets an AI assistant searc
 
 ## Tools
 
+### Grant intelligence
+
 | Tool | What it does |
 |---|---|
 | `search_awards` | Search by keyword, PI, institution, city/state, program, start-date range, active status |
@@ -13,6 +15,23 @@ An [MCP](https://modelcontextprotocol.io) server that lets an AI assistant searc
 | `awards_by_pi` | Funding history of a principal investigator |
 | `awards_by_institution` | Awards to an institution, optionally active only |
 | `funding_trends` | Award count and obligated dollars per start year for a keyword or program (sampled) |
+
+### Winning-proposal analysis
+
+These mine what actually gets funded. Each samples awards from `from_year` onward
+(default 2020), spread evenly across start years.
+
+| Tool | What it does |
+|---|---|
+| `analyze_topic` | Award stats for a topic: total and median funding, top programs, institutions and PIs, awards per start year |
+| `sample_winning_abstracts` | Full abstracts, PIs and amounts of the largest recent awards, to study how winning proposals read |
+| `compare_funding_by_program` | Which NSF programs fund a topic, ranked by dollars, to see where to submit |
+| `pi_track_record` | A PI's NSF history: award count, total funding, programs, institutions, year span |
+| `extract_themes` | Most frequent substantive terms across funded abstracts for a topic |
+
+Example prompts: "What does NSF fund in quantum sensing since 2023?", "Show me
+abstracts of recent funded AI-for-geoscience awards", "Which programs fund
+cybersecurity education?"
 
 ## Setup
 
@@ -49,5 +68,13 @@ Tests mock the NSF API and run offline.
 - The API returns at most 25 results per page and reports match counts up to 10,000.
 - `funding_trends` aggregates a sample (up to `max_pages` × 25 awards), drawn from the
   most recent start dates first. Treat totals as indicative for broad keywords.
+- The API returns results newest start date first, and NSF lists awards with future start
+  dates (next year's included). The analysis tools therefore query one year at a time,
+  `from_year` through next year, with an equal quota per year. A capped scan without this
+  would fill up with only the latest awards.
+- The analysis tools are samples (default 100 to 150 awards), not censuses, and a year with
+  more awards is not weighted more heavily. Raise `max_awards` (or `n`) for a larger sample.
+- `fundProgramName` comes back truncated by the API (for example "CSCS: Circuits and Systems
+  for"), so program names in the results can be cut off.
 - Keyword matching is loose: it can match any text in the record, so counts for broad
   terms like "artificial intelligence" are inflated. Filtering by program is more precise.
