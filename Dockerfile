@@ -3,8 +3,9 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install --no-cache-dir .
-ENV MCP_TRANSPORT=streamable-http PORT=8000
-EXPOSE 8000
+# Setting PORT is what makes the server serve HTTP (it is stdio when PORT is unset).
+ENV PORT=8080
+EXPOSE 8080
 USER nobody
 # slim has no curl, so probe with the standard library
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

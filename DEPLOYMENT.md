@@ -19,8 +19,8 @@ The image is based on `python:3.13-slim` and runs as the non-root user `nobody`.
 
 | Setting | Value |
 |---|---|
-| Port | `8000` (read from the `PORT` environment variable) |
-| Environment variables | None required. The image sets `MCP_TRANSPORT=streamable-http` and `PORT=8000`. Optional: `HOST` (default `0.0.0.0`) |
+| Port | `8080` (read from the `PORT` environment variable; setting `PORT` is what switches the server to HTTP) |
+| Environment variables | None required. The image sets `PORT=8080`. The server then listens on `0.0.0.0:$PORT`. |
 | MCP endpoint | `POST /mcp` |
 | Health check | `GET /health`, returns `200` and `{"status":"healthy","service":"nsf-grant-intelligence"}`; `GET /version` returns the package version |
 | Landing page | `GET /` returns an HTML page (not a health check) |
@@ -71,8 +71,8 @@ Open `$URL/` in a browser to see the landing page, which shows the MCP endpoint 
 To try the image locally first:
 
 ```bash
-docker run --rm -p 8000:8000 nsf-grant-intelligence
-curl -s localhost:8000/health
+docker run --rm -p 8080:8080 nsf-grant-intelligence
+curl -s localhost:8080/health
 ```
 
 ## Connecting a client
@@ -87,7 +87,7 @@ Any MCP client that supports streamable HTTP can use `$URL/mcp`.
 
 | Symptom | Likely cause |
 |---|---|
-| Container is marked unhealthy | Health check points at `/` or `/mcp`. It must be `/health` on port 8000. |
+| Container is marked unhealthy | Health check points at `/` or `/mcp`. It must be `/health` on port 8080. |
 | `exec format error` at startup | Image built for the wrong CPU architecture. Rebuild with `--platform` set to match the host. |
 | Requests to `/mcp` hang or time out | Proxy buffers responses or has a short timeout. Allow streaming and a 60 s or longer timeout. |
 | Tools return "NSF API unreachable" | The container cannot reach `api.nsf.gov` over HTTPS. Check egress rules. |
