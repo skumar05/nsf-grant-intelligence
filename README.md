@@ -53,7 +53,7 @@ cybersecurity education?"
 ├── tests/                        offline tests; the NSF API is mocked
 ├── eval/                         evaluation
 │   ├── run_eval.py, answer_eval.py, dataset.json   live, tool-selection and answer layers
-│   ├── RESULTS.md, JUDGE_REVIEW.md, EVALUATION.docx   results, judge audit sheet, write-up
+│   ├── RESULTS.md, JUDGE_REVIEW.md, JUDGE_AUDIT.md, EVALUATION.docx   results, review sheet, its audit, write-up
 │   └── phoenix/                  Arize Phoenix harness: agent, judges, prompts, gold questions
 ├── deploy/                       deployment scripts
 │   └── aws-lightsail/            deploy and teardown for AWS Lightsail Containers
@@ -106,6 +106,9 @@ deploy/aws-lightsail/lightsail.sh             # deploy; prints the MCP endpoint,
 deploy/aws-lightsail/lightsail-teardown.sh    # delete the service and stop billing
 ```
 
+A live instance runs at `https://nsf-grant-intelligence.svyw8btrxggzc.us-east-1.cs.amazonlightsail.com/mcp`
+(last redeployed 2026-11-18). It is open to anyone and may be taken down at any time.
+
 Optional variables: `AWS_REGION` (default `us-east-1`), `SERVICE_NAME`, `POWER` (default `nano`, about
 $7/month), `SCALE`. The service is public with no authentication, so anyone with the URL can call the tools.
 
@@ -130,7 +133,8 @@ Tests mock the NSF API and run offline. CI (`.github/workflows/ci.yml`) also run
 - **answer**: 20 questions an agent answers end to end, scored by two LLM judges (correctness against reference
   answers taken from raw NSF API calls, and scope adherence), run with the tools and again with no tools as a
   baseline. A second model (claude-opus-5-5) re-grades every answer, and `eval/JUDGE_REVIEW.md` lists items for a
-  human to audit. `eval/answer_eval.py`.
+  human to audit. `eval/answer_eval.py`. Claude rechecked the 20 first-run answers on that sheet against the live API
+  and found all verdicts correct ([eval/JUDGE_AUDIT.md](eval/JUDGE_AUDIT.md)); that is not a human review.
 
 ```bash
 .venv/bin/python eval/run_eval.py --repeats 3
