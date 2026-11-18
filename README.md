@@ -103,9 +103,16 @@ Tests mock the NSF API and run offline. CI (`.github/workflows/ci.yml`) also run
 
 Cases live in `eval/dataset.json`. Latest results: [eval/RESULTS.md](eval/RESULTS.md).
 
+A second harness in [`eval/phoenix/`](eval/phoenix/README.md) follows the hackathon template's Arize Phoenix layout: a
+LangChain agent over stdio, 10 multi-step gold questions (`evaluation.xml`), and `match_expected_response` and
+`check_answer_scope` judges with a separate judge model. It needs its own virtual environment. Latest results:
+[eval/phoenix/RESULTS.md](eval/phoenix/RESULTS.md).
+
 ## Caveats
 
 - The API returns at most 25 results per page and reports match counts up to 10,000.
+- Offset paging over a long result list is not reliable: it can repeat some awards and skip others (110 awards
+  came back as 108 distinct ones). `totalCount` is exact; for a complete list of one query, split it into date windows.
 - `funding_trends` aggregates a sample (up to `max_pages` × 25 awards), drawn from the
   most recent start dates first. Treat totals as indicative for broad keywords.
 - The API returns results newest start date first, and NSF lists awards with future start

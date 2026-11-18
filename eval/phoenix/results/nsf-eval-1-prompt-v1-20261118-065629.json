@@ -1,0 +1,197 @@
+{
+  "experiment": "nsf-eval-1-prompt-v1-20261118-065629",
+  "dataset": "nsf-eval-1",
+  "prompt_version": "v1",
+  "agent_model": "claude-sonnet-5-5",
+  "judge_model": "claude-opus-5-5",
+  "label_counts": {
+    "check_answer_scope": {
+      "within_scope": 10
+    },
+    "match_expected_response": {
+      "correct": 10
+    }
+  },
+  "rows": [
+    {
+      "question": "What is the title of the NSF award mentioning \"CRISPR\" with a 2018 start date that has the largest funds obligated to date?",
+      "reference": "RII Track-2 FEC: Systems Genetics Studies on Rice Genomes for Analysis of Grain Yield and Quality Under Heat Stress",
+      "evaluator": "check_answer_scope",
+      "label": "within_scope",
+      "explanation": "The question asks which NSF award fits certain criteria (mentions CRISPR, started in 2018, largest obligated funds), so it is in scope, and the agent made a genuine attempt to answer it.",
+      "agent_answer": "The CRISPR award starting in 2018 with the largest funds obligated is **\"RII Track-2 FEC: Systems Genetics Studies on Rice Genomes for Analysis of Grain Yield and Quality Under Heat Stress\"**. The award ID is 1826836, the PI is Andy Pereira at the University of Arkansas, and it started 08/01/2018. Funds obligated to date are $5,564,316.\n\nI checked all 62 CRISPR-matching awards with 2018 start dates. The next largest is 1826781, a sorghum nitrogen-response project at HudsonAlpha, with $4,546,896 obligated.",
+      "error": null
+    },
+    {
+      "question": "What is the title of the NSF award mentioning \"CRISPR\" with a 2018 start date that has the largest funds obligated to date?",
+      "reference": "RII Track-2 FEC: Systems Genetics Studies on Rice Genomes for Analysis of Grain Yield and Quality Under Heat Stress",
+      "evaluator": "match_expected_response",
+      "label": "correct",
+      "explanation": "The agent gives the same title as the reference answer. The added details (award ID, PI, start date, amount obligated) do not contradict the reference.",
+      "agent_answer": "The CRISPR award starting in 2018 with the largest funds obligated is **\"RII Track-2 FEC: Systems Genetics Studies on Rice Genomes for Analysis of Grain Yield and Quality Under Heat Stress\"**. The award ID is 1826836, the PI is Andy Pereira at the University of Arkansas, and it started 08/01/2018. Funds obligated to date are $5,564,316.\n\nI checked all 62 CRISPR-matching awards with 2018 start dates. The next largest is 1826781, a sorghum nitrogen-response project at HudsonAlpha, with $4,546,896 obligated.",
+      "error": null
+    },
+    {
+      "question": "Did the NSF \"Robust Intelligence\" program start more awards in 2019 or in 2020, and by how many?",
+      "reference": "2019, by 25 awards (170 versus 145)",
+      "evaluator": "check_answer_scope",
+      "label": "within_scope",
+      "explanation": "The question asks about NSF award counts and trends for a specific NSF program, which is in scope, and the agent made a genuine attempt to answer it.",
+      "agent_answer": "NSF's Robust Intelligence program started more awards in 2019 than in 2020. It started 170 awards in 2019 and 145 in 2020, so 2019 had 25 more. These counts are exact for each start year.",
+      "error": null
+    },
+    {
+      "question": "Did the NSF \"Robust Intelligence\" program start more awards in 2019 or in 2020, and by how many?",
+      "reference": "2019, by 25 awards (170 versus 145)",
+      "evaluator": "match_expected_response",
+      "label": "correct",
+      "explanation": "The agent answer names 2019 and gives 170 versus 145, a difference of 25. This matches every part of the reference.",
+      "agent_answer": "NSF's Robust Intelligence program started more awards in 2019 than in 2020. It started 170 awards in 2019 and 145 in 2020, so 2019 had 25 more. These counts are exact for each start year.",
+      "error": null
+    },
+    {
+      "question": "Who is the principal investigator on the NSF award starting in 2020 at Carnegie Mellon University that has the largest funds obligated to date?",
+      "reference": "Paola Buitrago",
+      "evaluator": "check_answer_scope",
+      "label": "within_scope",
+      "explanation": "The question asks about NSF awards: the PI, the institution and the obligated funds, so it is in scope, and the agent made a genuine attempt to answer it.",
+      "agent_answer": "The principal investigator is **Paola Buitrago** of Carnegie Mellon University. Her award is #2005597, \"Category II: Unlocking Interactive AI Development for Rapidly Evolving Research,\" which started 06/01/2020. It has $13,249,998 in funds obligated to date, the most of any CMU award starting in 2020.\n\nI paged through all 110 CMU awards with 2020 start dates. The next largest obligations I saw were far smaller, such as $2.39M for Nesra Yannier's award and $2.04M for Haiyi Zhu's.",
+      "error": null
+    },
+    {
+      "question": "Who is the principal investigator on the NSF award starting in 2020 at Carnegie Mellon University that has the largest funds obligated to date?",
+      "reference": "Paola Buitrago",
+      "evaluator": "match_expected_response",
+      "label": "correct",
+      "explanation": "The agent's answer names Paola Buitrago as the principal investigator, which matches the reference answer. The extra details about the award do not contradict it.",
+      "agent_answer": "The principal investigator is **Paola Buitrago** of Carnegie Mellon University. Her award is #2005597, \"Category II: Unlocking Interactive AI Development for Rapidly Evolving Research,\" which started 06/01/2020. It has $13,249,998 in funds obligated to date, the most of any CMU award starting in 2020.\n\nI paged through all 110 CMU awards with 2020 start dates. The next largest obligations I saw were far smaller, such as $2.39M for Nesra Yannier's award and $2.04M for Haiyi Zhu's.",
+      "error": null
+    },
+    {
+      "question": "Of Stanford University, Carnegie Mellon University and Massachusetts Institute of Technology, which institution had the most NSF awards with a 2020 start date?",
+      "reference": "Massachusetts Institute of Technology",
+      "evaluator": "check_answer_scope",
+      "label": "within_scope",
+      "explanation": "The question compares NSF award counts across institutions for 2020, which is in scope, and the agent made a genuine attempt to answer it.",
+      "agent_answer": "**Massachusetts Institute of Technology** had the most NSF awards with a 2020 start date, at 142. I counted awards with start dates from 01/01/2020 to 12/31/2020 for each institution:\n\n- Massachusetts Institute of Technology: 142\n- Stanford University: 119\n- Carnegie Mellon University: 110",
+      "error": null
+    },
+    {
+      "question": "Of Stanford University, Carnegie Mellon University and Massachusetts Institute of Technology, which institution had the most NSF awards with a 2020 start date?",
+      "reference": "Massachusetts Institute of Technology",
+      "evaluator": "match_expected_response",
+      "label": "correct",
+      "explanation": "The agent identifies Massachusetts Institute of Technology, which matches the reference answer. The extra award counts do not contradict the reference.",
+      "agent_answer": "**Massachusetts Institute of Technology** had the most NSF awards with a 2020 start date, at 142. I counted awards with start dates from 01/01/2020 to 12/31/2020 for each institution:\n\n- Massachusetts Institute of Technology: 142\n- Stanford University: 119\n- Carnegie Mellon University: 110",
+      "error": null
+    },
+    {
+      "question": "Between 2018 and 2022 inclusive, in which start year did NSF begin the most awards mentioning \"CRISPR\"?",
+      "reference": "2021",
+      "evaluator": "check_answer_scope",
+      "label": "within_scope",
+      "explanation": "The question asks about NSF award counts by start year for awards mentioning CRISPR, which is an in-scope funding-trends question, and the agent made a genuine attempt to answer it.",
+      "agent_answer": "NSF began the most awards mentioning \"CRISPR\" in **2021**, with 68 awards. The other years in the range were 2018 (62), 2020 (59), 2022 (57) and 2019 (37). These counts are exact per start year, not sampled.",
+      "error": null
+    },
+    {
+      "question": "Between 2018 and 2022 inclusive, in which start year did NSF begin the most awards mentioning \"CRISPR\"?",
+      "reference": "2021",
+      "evaluator": "match_expected_response",
+      "label": "correct",
+      "explanation": "The agent identifies 2021 as the start year with the most CRISPR awards, which matches the reference. The extra per-year counts do not contradict it.",
+      "agent_answer": "NSF began the most awards mentioning \"CRISPR\" in **2021**, with 68 awards. The other years in the range were 2018 (62), 2020 (59), 2022 (57) and 2019 (37). These counts are exact per start year, not sampled.",
+      "error": null
+    },
+    {
+      "question": "Of the NSF awards mentioning \"CRISPR\" that started in 2019, which funding program (as NSF names it) accounts for the most awards?",
+      "reference": "Plant Genome Research Project",
+      "evaluator": "check_answer_scope",
+      "label": "within_scope",
+      "explanation": "The question asks about NSF awards and their funding programs, which is in scope, and the agent made a genuine attempt to answer it.",
+      "agent_answer": "Of the 37 NSF awards mentioning \"CRISPR\" that started in 2019, **Plant Genome Research Project** accounts for the most. It has 7 awards:\n\n- 1934388\n- 1936872\n- 1840687\n- 1844705\n- 1844304\n- 1844264\n- 1848434\n\nI paged through all 37 awards and counted them by the program name on each record. The next closest were Genetic Mechanisms and Cellular & Biochem Engineering, with 3 each. Several awards list more than one program, such as \"Genetic Mechanisms, Chemistry of Life Processes, EFRI Research Projects\". I counted those under their combined string, not under each program separately. Counting the",
+      "error": null
+    },
+    {
+      "question": "Of the NSF awards mentioning \"CRISPR\" that started in 2019, which funding program (as NSF names it) accounts for the most awards?",
+      "reference": "Plant Genome Research Project",
+      "evaluator": "match_expected_response",
+      "label": "correct",
+      "explanation": "The agent identifies Plant Genome Research Project as the top program, which matches the reference. The extra counts and award IDs do not contradict it.",
+      "agent_answer": "Of the 37 NSF awards mentioning \"CRISPR\" that started in 2019, **Plant Genome Research Project** accounts for the most. It has 7 awards:\n\n- 1934388\n- 1936872\n- 1840687\n- 1844705\n- 1844304\n- 1844264\n- 1848434\n\nI paged through all 37 awards and counted them by the program name on each record. The next closest were Genetic Mechanisms and Cellular & Biochem Engineering, with 3 each. Several awards list more than one program, such as \"Genetic Mechanisms, Chemistry of Life Processes, EFRI Research Projects\". I counted those under their combined string, not under each program separately. Counting the",
+      "error": null
+    },
+    {
+      "question": "Among the NSF awards mentioning \"CRISPR\" that started in 2019, which institution holds the most of them?",
+      "reference": "University of Wisconsin-Madison",
+      "evaluator": "check_answer_scope",
+      "label": "within_scope",
+      "explanation": "The question asks which institution holds the most NSF awards that mention CRISPR and started in 2019. That is an in-scope query about NSF awards and institutions, and the agent made a genuine attempt to answer it.",
+      "agent_answer": "The University of Wisconsin-Madison holds the most. It has 4 of the 37 NSF awards that mention \"CRISPR\" and started in 2019. I read through all 37 and counted by institution.\n\nThe four UW-Madison awards are:\n- 1929296, the Mariposa lilies (Calochortus) project\n- 1912259, enhanced ribosomes with universal protein-folding capabilities\n- 1840687, autophagy in maize\n- 1844304, haploid inducer lines for hybrid production\n\nCornell University, UC-Riverside and UC-Davis follow with 2 each, and every other institution has 1.",
+      "error": null
+    },
+    {
+      "question": "Among the NSF awards mentioning \"CRISPR\" that started in 2019, which institution holds the most of them?",
+      "reference": "University of Wisconsin-Madison",
+      "evaluator": "match_expected_response",
+      "label": "correct",
+      "explanation": "The agent identifies the University of Wisconsin-Madison as the top institution, which matches the reference. The extra details it gives do not contradict the reference.",
+      "agent_answer": "The University of Wisconsin-Madison holds the most. It has 4 of the 37 NSF awards that mention \"CRISPR\" and started in 2019. I read through all 37 and counted by institution.\n\nThe four UW-Madison awards are:\n- 1929296, the Mariposa lilies (Calochortus) project\n- 1912259, enhanced ribosomes with universal protein-folding capabilities\n- 1840687, autophagy in maize\n- 1844304, haploid inducer lines for hybrid production\n\nCornell University, UC-Riverside and UC-Davis follow with 2 each, and every other institution has 1.",
+      "error": null
+    },
+    {
+      "question": "How many more NSF awards mentioning \"quantum\" started in 2021 than in 2019?",
+      "reference": "101",
+      "evaluator": "check_answer_scope",
+      "label": "within_scope",
+      "explanation": "The question asks about NSF award counts and funding trends, which is in scope. The agent made a genuine attempt to answer it, giving per-year counts and the difference.",
+      "agent_answer": "NSF awards mentioning \"quantum\" numbered 777 with a 2021 start date and 676 with a 2019 start date. That makes **101 more** in 2021 than in 2019.\n\nThese are the exact per-year counts from the NSF API. The keyword match is loose, so it counts any award record that mentions \"quantum\".",
+      "error": null
+    },
+    {
+      "question": "How many more NSF awards mentioning \"quantum\" started in 2021 than in 2019?",
+      "reference": "101",
+      "evaluator": "match_expected_response",
+      "label": "correct",
+      "explanation": "The agent's answer of 101 more awards matches the reference, and its counts are consistent with that figure (777 - 676 = 101).",
+      "agent_answer": "NSF awards mentioning \"quantum\" numbered 777 with a 2021 start date and 676 with a 2019 start date. That makes **101 more** in 2021 than in 2019.\n\nThese are the exact per-year counts from the NSF API. The keyword match is loose, so it counts any award record that mentions \"quantum\".",
+      "error": null
+    },
+    {
+      "question": "Counting NSF awards whose start date falls in 2019, 2020 or 2021 and whose records mention \"quantum\", how many awards is that in total across the three years?",
+      "reference": "2190",
+      "evaluator": "check_answer_scope",
+      "label": "within_scope",
+      "explanation": "The question asks for counts of NSF awards, which is in scope, and the agent made a genuine attempt to answer it with yearly figures and a caveat about keyword matching.",
+      "agent_answer": "NSF awards that started in 2019\u20132021 and mention \"quantum\" total **2,190**. The yearly counts come from the NSF API and are exact:\n\n- 2019: 676\n- 2020: 737\n- 2021: 777\n\nMatching on the keyword is loose, so this counts any award whose record contains the word \"quantum\", not only awards centered on quantum research.",
+      "error": null
+    },
+    {
+      "question": "Counting NSF awards whose start date falls in 2019, 2020 or 2021 and whose records mention \"quantum\", how many awards is that in total across the three years?",
+      "reference": "2190",
+      "evaluator": "match_expected_response",
+      "label": "correct",
+      "explanation": "The agent's total of 2,190 matches the reference. The yearly breakdown also sums correctly: 676 + 737 + 777 = 2190.",
+      "agent_answer": "NSF awards that started in 2019\u20132021 and mention \"quantum\" total **2,190**. The yearly counts come from the NSF API and are exact:\n\n- 2019: 676\n- 2020: 737\n- 2021: 777\n\nMatching on the keyword is loose, so this counts any award whose record contains the word \"quantum\", not only awards centered on quantum research.",
+      "error": null
+    },
+    {
+      "question": "Add up the funds obligated to date for NSF awards 1753742, 1753559 and 2138259. What is the combined total in US dollars?",
+      "reference": "13755019",
+      "evaluator": "check_answer_scope",
+      "label": "within_scope",
+      "explanation": "The question asks about funding amounts for specific NSF awards, which is in scope, and the agent made a genuine attempt to answer it.",
+      "agent_answer": "493,206 + 700,000 + 12,561,813 = 13,755,019\n\nThe combined funds obligated to date for the three awards are **$13,755,019**.\n\n- 1753742 (Nehrke, University of Rochester): $493,206\n- 1753559 (Reed, Cornell University): $700,000\n- 2138259 (Carnegie Mellon University, ACCESS RAMPS): $12,561,813\n\nFor 2138259, the obligated amount is higher than its estimated total of $7,500,000. I used the obligated figure because that is what you asked for.",
+      "error": null
+    },
+    {
+      "question": "Add up the funds obligated to date for NSF awards 1753742, 1753559 and 2138259. What is the combined total in US dollars?",
+      "reference": "13755019",
+      "evaluator": "match_expected_response",
+      "label": "correct",
+      "explanation": "The agent's total of $13,755,019 matches the reference value 13755019, and the per-award figures add up to it.",
+      "agent_answer": "493,206 + 700,000 + 12,561,813 = 13,755,019\n\nThe combined funds obligated to date for the three awards are **$13,755,019**.\n\n- 1753742 (Nehrke, University of Rochester): $493,206\n- 1753559 (Reed, Cornell University): $700,000\n- 2138259 (Carnegie Mellon University, ACCESS RAMPS): $12,561,813\n\nFor 2138259, the obligated amount is higher than its estimated total of $7,500,000. I used the obligated figure because that is what you asked for.",
+      "error": null
+    }
+  ]
+}

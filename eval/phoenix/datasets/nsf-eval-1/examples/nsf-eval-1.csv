@@ -1,0 +1,11 @@
+query,responses
+"Add up the funds obligated to date for NSF awards 1753742, 1753559 and 2138259. What is the combined total in US dollars?",13755019
+"Counting NSF awards whose start date falls in 2019, 2020 or 2021 and whose records mention ""quantum"", how many awards is that in total across the three years?",2190
+"How many more NSF awards mentioning ""quantum"" started in 2021 than in 2019?",101
+"Among the NSF awards mentioning ""CRISPR"" that started in 2019, which institution holds the most of them?",University of Wisconsin-Madison
+"Of the NSF awards mentioning ""CRISPR"" that started in 2019, which funding program (as NSF names it) accounts for the most awards?",Plant Genome Research Project
+"Between 2018 and 2022 inclusive, in which start year did NSF begin the most awards mentioning ""CRISPR""?",2021
+"Of Stanford University, Carnegie Mellon University and Massachusetts Institute of Technology, which institution had the most NSF awards with a 2020 start date?",Massachusetts Institute of Technology
+Who is the principal investigator on the NSF award starting in 2020 at Carnegie Mellon University that has the largest funds obligated to date?,Paola Buitrago
+"Did the NSF ""Robust Intelligence"" program start more awards in 2019 or in 2020, and by how many?","2019, by 25 awards (170 versus 145)"
+"What is the title of the NSF award mentioning ""CRISPR"" with a 2018 start date that has the largest funds obligated to date?",RII Track-2 FEC: Systems Genetics Studies on Rice Genomes for Analysis of Grain Yield and Quality Under Heat Stress

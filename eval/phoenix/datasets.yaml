@@ -1,0 +1,8 @@
+datasets:
+  nsf-eval-1:
+    csv_path: datasets/nsf-eval-1/examples/nsf-eval-1.csv
+    input_keys:
+      - query
+    output_keys:
+      - responses
+    description: "10 multi-step gold questions over NSF awards (counts, comparisons, top-1 lookups); answers computed from raw API calls"

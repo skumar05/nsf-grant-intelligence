@@ -1,0 +1,46 @@
+<evaluation>
+   <!-- Gold answers were computed from raw NSF API calls (not through this server), 2026-11-18.
+        Start-date filters and quoted institution and program names. Anything that needs the individual
+        awards was gathered in monthly date windows and checked against the API's totalCount, because
+        offset paging over a whole year can repeat some awards and skip others (see README). -->
+   <qa_pair>
+      <question>Add up the funds obligated to date for NSF awards 1753742, 1753559 and 2138259. What is the combined total in US dollars?</question>
+      <answer>13755019</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Counting NSF awards whose start date falls in 2019, 2020 or 2021 and whose records mention "quantum", how many awards is that in total across the three years?</question>
+      <answer>2190</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>How many more NSF awards mentioning "quantum" started in 2021 than in 2019?</question>
+      <answer>101</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Among the NSF awards mentioning "CRISPR" that started in 2019, which institution holds the most of them?</question>
+      <answer>University of Wisconsin-Madison</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Of the NSF awards mentioning "CRISPR" that started in 2019, which funding program (as NSF names it) accounts for the most awards?</question>
+      <answer>Plant Genome Research Project</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Between 2018 and 2022 inclusive, in which start year did NSF begin the most awards mentioning "CRISPR"?</question>
+      <answer>2021</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Of Stanford University, Carnegie Mellon University and Massachusetts Institute of Technology, which institution had the most NSF awards with a 2020 start date?</question>
+      <answer>Massachusetts Institute of Technology</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Who is the principal investigator on the NSF award starting in 2020 at Carnegie Mellon University that has the largest funds obligated to date?</question>
+      <answer>Paola Buitrago</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Did the NSF "Robust Intelligence" program start more awards in 2019 or in 2020, and by how many?</question>
+      <answer>2019, by 25 awards (170 versus 145)</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>What is the title of the NSF award mentioning "CRISPR" with a 2018 start date that has the largest funds obligated to date?</question>
+      <answer>RII Track-2 FEC: Systems Genetics Studies on Rice Genomes for Analysis of Grain Yield and Quality Under Heat Stress</answer>
+   </qa_pair>
+</evaluation>

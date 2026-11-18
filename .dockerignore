@@ -9,3 +9,7 @@ __pycache__
 eval
 presentation
 tests
+.venv-eval
+.venv-phoenix
+.github
+deploy

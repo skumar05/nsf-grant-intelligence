@@ -1,0 +1,18 @@
+# Eval-only environment for the Phoenix harness (python -m venv .venv-eval && pip install -r eval/phoenix/requirements.txt).
+#
+# Keep it separate from the server's .venv: langchain-mcp-adapters needs the MCP client library 1.x,
+# while the server needs mcp>=2.3. The agent launches the server as a subprocess from the server's .venv.
+# The Phoenix *server* (arize-phoenix) is also kept out of this env, because it pulls in mcp 2.x libraries;
+# install it separately, see README.md.
+arize-phoenix-client>=2.13
+arize-phoenix-evals>=3.1.1
+arize-phoenix-otel
+langchain>=1.0
+langchain-mcp-adapters>=0.3
+langchain-anthropic
+langchain-openai
+mcp>=1.9,<2
+openinference-instrumentation-langchain>=0.1.67
+pandas>=2
+pyyaml>=6
+python-dotenv
