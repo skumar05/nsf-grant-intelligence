@@ -57,7 +57,7 @@ cybersecurity education?"
 │   └── phoenix/                  Arize Phoenix harness: agent, judges, prompts, gold questions
 ├── deploy/                       deployment scripts
 │   └── aws-lightsail/            deploy and teardown for AWS Lightsail Containers
-├── presentation/                 slide deck, demo video script, architecture.html diagram
+├── presentation/                 slide deck, demo video script, architecture diagram (html and png)
 ├── Dockerfile                    container image (serves HTTP on port 8080)
 ├── pyproject.toml                package metadata, dependencies, ruff config
 ├── requirements.txt              runtime dependencies for platforms that expect one
