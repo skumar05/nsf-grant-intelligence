@@ -60,14 +60,14 @@ For any other host, see [DEPLOYMENT.md](DEPLOYMENT.md): build context, runtime c
 
 ## Deploy to AWS Lightsail Containers
 
-`deploy/lightsail.sh` builds the image (`linux/amd64`), pushes it to Lightsail, and creates or updates a
+`deploy/aws-lightsail/lightsail.sh` builds the image (`linux/amd64`), pushes it to Lightsail, and creates or updates a
 container service with an HTTPS endpoint and an HTTP health check on `/health`. It needs the `aws` CLI with
 credentials, a running Docker daemon, and the `lightsailctl` plugin (the script prints the install command).
 
 ```bash
-DRY_RUN=1 deploy/lightsail.sh   # print every command without running anything
-deploy/lightsail.sh             # deploy; prints the MCP endpoint, https://<service-url>/mcp
-deploy/lightsail-teardown.sh    # delete the service and stop billing
+DRY_RUN=1 deploy/aws-lightsail/lightsail.sh   # print every command without running anything
+deploy/aws-lightsail/lightsail.sh             # deploy; prints the MCP endpoint, https://<service-url>/mcp
+deploy/aws-lightsail/lightsail-teardown.sh    # delete the service and stop billing
 ```
 
 Optional variables: `AWS_REGION` (default `us-east-1`), `SERVICE_NAME`, `POWER` (default `nano`, about
