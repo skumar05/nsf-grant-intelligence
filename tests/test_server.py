@@ -433,12 +433,52 @@ def test_institution_names_are_sent_as_quoted_phrases(fake_api):
     assert calls[2]["awardeeName"] == '"Rochester"'
 
 
-def test_health_endpoint_reports_ok():
+def test_health_endpoint_reports_healthy():
     from starlette.testclient import TestClient
 
     with TestClient(server.mcp.streamable_http_app()) as client:
         r = client.get("/health")
-    assert r.status_code == 200 and r.json() == {"status": "ok"}
+    assert r.status_code == 200
+    assert r.json() == {"status": "healthy", "service": "nsf-grant-intelligence"}
+
+
+def test_version_endpoint_reports_package_version():
+    from starlette.testclient import TestClient
+
+    from nsf_grant_intelligence import __version__
+
+    with TestClient(server.mcp.streamable_http_app()) as client:
+        r = client.get("/version")
+    assert r.status_code == 200 and r.json() == {"version": __version__}
+
+
+def test_every_tool_has_a_title_and_safe_annotations():
+    for tool in asyncio.run(server.mcp.list_tools()):
+        a = tool.annotations
+        assert a.title, tool.name
+        assert a.read_only_hint and a.idempotent_hint and a.open_world_hint, tool.name
+        assert a.destructive_hint is False, tool.name
+
+
+def test_api_rejects_oversized_response(http):
+    http(httpx.Response(200, content=b"x" * (api.MAX_RESPONSE_BYTES + 1)))
+    with pytest.raises(api.NSFAPIError, match="too large"):
+        asyncio.run(api.request({}))
+
+
+def test_real_client_ignores_proxies_and_redirects():
+    async def build():
+        return api._get_client()
+
+    client = asyncio.run(build())
+    assert client.follow_redirects is False
+    assert client._trust_env is False
+
+
+def test_httpx_request_logging_is_quiet():
+    import logging
+
+    assert logging.getLogger("httpx").level >= logging.WARNING
 
 
 def test_landing_page_lists_tools_and_the_mcp_url():

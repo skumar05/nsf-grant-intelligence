@@ -26,7 +26,7 @@ from pydantic import Field
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 
-from . import api, sampling
+from . import __version__, api, sampling
 from .models import (
     AwardDetail,
     AwardSearchResult,
@@ -58,8 +58,10 @@ PI_PAGES = 4  # pi_track_record scans up to this many pages of 25
 
 mcp = MCPServer("nsf-grant-intelligence")
 
-# Every tool only reads from a public third-party API.
-READ_ONLY = ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True)
+def _read_only(title: str) -> ToolAnnotations:
+    """Every tool only reads from a public third-party API."""
+    return ToolAnnotations(title=title, readOnlyHint=True, destructiveHint=False,
+                           idempotentHint=True, openWorldHint=True)
 
 
 LANDING_PAGE = """<!doctype html>
@@ -135,14 +137,19 @@ async def landing(request: Request) -> HTMLResponse:
 @mcp.custom_route("/health", methods=["GET"])
 async def health(request: Request) -> JSONResponse:
     """Liveness probe for load balancers and container platforms (HTTP transport only)."""
-    return JSONResponse({"status": "ok"})
+    return JSONResponse({"status": "healthy", "service": "nsf-grant-intelligence"})
+
+
+@mcp.custom_route("/version", methods=["GET"])
+async def version(request: Request) -> JSONResponse:
+    return JSONResponse({"version": __version__})
 
 
 def _counts(pairs: list[tuple[str, int]]) -> list[NamedCount]:
     return [NamedCount(name=n, count=c) for n, c in pairs]
 
 
-@mcp.tool(annotations=READ_ONLY)
+@mcp.tool(annotations=_read_only("Search NSF awards"))
 async def search_awards(
     keyword: Keyword = "",
     pi_first_name: FirstName = "",
@@ -193,7 +200,7 @@ async def search_awards(
     )
 
 
-@mcp.tool(annotations=READ_ONLY)
+@mcp.tool(annotations=_read_only("Get an NSF award"))
 async def get_award(
     award_id: Annotated[str, Field(min_length=1, description='NSF award ID, e.g. "1753742".')],
 ) -> AwardDetail:
@@ -212,7 +219,7 @@ async def get_award(
     )
 
 
-@mcp.tool(annotations=READ_ONLY)
+@mcp.tool(annotations=_read_only("Institution funding profile"))
 async def institution_profile(
     name: Annotated[str, Field(min_length=1, description='Institution name, e.g. "Carnegie Mellon".')],
     keyword: Annotated[
@@ -246,7 +253,7 @@ async def institution_profile(
     )
 
 
-@mcp.tool(annotations=READ_ONLY)
+@mcp.tool(annotations=_read_only("Funding trends by year"))
 async def funding_trends(
     keyword: Keyword = "",
     fund_program_name: ProgramName = "",
@@ -305,7 +312,7 @@ async def funding_trends(
     )
 
 
-@mcp.tool(annotations=READ_ONLY)
+@mcp.tool(annotations=_read_only("Analyze a funding topic"))
 async def analyze_topic(
     keyword: Annotated[str, Field(min_length=1, description='Topic, e.g. "quantum sensing".')],
     fund_program_name: ProgramName = "",
@@ -332,7 +339,7 @@ async def analyze_topic(
     )
 
 
-@mcp.tool(annotations=READ_ONLY)
+@mcp.tool(annotations=_read_only("Sample winning abstracts"))
 async def sample_winning_abstracts(
     keyword: Annotated[str, Field(min_length=1, description="Topic to sample abstracts for.")],
     fund_program_name: ProgramName = "",
@@ -364,7 +371,7 @@ async def sample_winning_abstracts(
     )
 
 
-@mcp.tool(annotations=READ_ONLY)
+@mcp.tool(annotations=_read_only("Compare funding by program"))
 async def compare_funding_by_program(
     keyword: Annotated[str, Field(min_length=1, description="Topic to find funding programs for.")],
     from_year: FromYear = 2020,
@@ -392,7 +399,7 @@ async def compare_funding_by_program(
     )
 
 
-@mcp.tool(annotations=READ_ONLY)
+@mcp.tool(annotations=_read_only("PI track record"))
 async def pi_track_record(last_name: LastName, first_name: FirstName = "") -> PITrackRecord:
     """Summary of a PI's NSF history: award count, total funding, programs,
     institutions and year span, from the 100 most recent matching awards.
@@ -437,7 +444,7 @@ async def pi_track_record(last_name: LastName, first_name: FirstName = "") -> PI
     )
 
 
-@mcp.tool(annotations=READ_ONLY)
+@mcp.tool(annotations=_read_only("Extract abstract themes"))
 async def extract_themes(
     keyword: Annotated[str, Field(min_length=1, description="Topic to mine abstracts for.")],
     fund_program_name: ProgramName = "",

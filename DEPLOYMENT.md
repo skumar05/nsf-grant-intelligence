@@ -22,9 +22,9 @@ The image is based on `python:3.13-slim` and runs as the non-root user `nobody`.
 | Port | `8000` (read from the `PORT` environment variable) |
 | Environment variables | None required. The image sets `MCP_TRANSPORT=streamable-http` and `PORT=8000`. Optional: `HOST` (default `0.0.0.0`) |
 | MCP endpoint | `POST /mcp` |
-| Health check | `GET /health`, returns `200` and `{"status":"ok"}` |
+| Health check | `GET /health`, returns `200` and `{"status":"healthy","service":"nsf-grant-intelligence"}`; `GET /version` returns the package version |
 | Landing page | `GET /` returns an HTML page (not a health check) |
-| Outbound network | HTTPS (443) to `api.nsf.gov` |
+| Outbound network | HTTPS (443) straight to `api.nsf.gov`. `HTTP_PROXY`/`HTTPS_PROXY` variables are deliberately ignored, so a host that only reaches the internet through a proxy needs a direct egress rule for this host |
 | Size | 0.25 vCPU and 512 MB is enough |
 | Scaling | Stateless: run any number of copies behind a load balancer, no sticky sessions |
 | Secrets | None |
@@ -52,7 +52,7 @@ Replace `$URL` with the service's public HTTPS address.
 ```bash
 # 1. Health
 curl -s $URL/health
-# expect: {"status":"ok"}
+# expect: {"status":"healthy","service":"nsf-grant-intelligence"}
 
 # 2. The 9 tools are listed
 curl -s -X POST $URL/mcp \

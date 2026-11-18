@@ -3,23 +3,19 @@
 from __future__ import annotations
 
 import asyncio
-import os
+import logging
 
-# Some environments put bracketed IPv6 literals (e.g. "[::1]") in no_proxy,
-# which httpx fails to parse. Strip just those entries; proxying itself is
-# otherwise left exactly as the environment configures it.
-for _var in ("no_proxy", "NO_PROXY"):
-    _val = os.environ.get(_var)
-    if _val and "[" in _val:
-        os.environ[_var] = ",".join(p for p in _val.split(",") if "[" not in p)
+import httpx
+from mcp.server.mcpserver.exceptions import ToolError
 
-import httpx  # noqa: E402  (must come after the no_proxy cleanup above)
-from mcp.server.mcpserver.exceptions import ToolError  # noqa: E402
+from .transform import to_int
 
-from .transform import to_int  # noqa: E402
+# httpx logs every request URL (including search terms) at INFO; keep those out of the logs.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 BASE_URL = "https://api.nsf.gov/services/v1"
 TIMEOUT = 30.0
+MAX_RESPONSE_BYTES = 5_000_000  # a response larger than this is rejected, not parsed
 MAX_ATTEMPTS = 3  # total tries per request for transient failures
 RETRY_BASE_DELAY = 0.5  # seconds; doubles each retry (tests set this to 0)
 RETRY_STATUSES = {429, 500, 502, 503, 504}
@@ -52,7 +48,8 @@ def _get_client() -> httpx.AsyncClient:
     loop = asyncio.get_running_loop()
     client = _client_state["client"]
     if client is None or client.is_closed or _client_state["loop"] is not loop:
-        client = httpx.AsyncClient(timeout=TIMEOUT)
+        # Fixed origin: never follow redirects, and ignore proxy settings in the environment.
+        client = httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=False, trust_env=False)
         _client_state.update(client=client, loop=loop)
     return client
 
@@ -77,6 +74,8 @@ async def request(params: dict) -> dict:
         try:
             response = await _get_client().get(f"{BASE_URL}/awards.json", params=params)
             response.raise_for_status()
+            if len(response.content) > MAX_RESPONSE_BYTES:
+                raise NSFAPIError("NSF API response was too large; narrow the search.")
             body = response.json().get("response", {})
         except httpx.HTTPStatusError as e:
             if e.response.status_code not in RETRY_STATUSES or last_try:
