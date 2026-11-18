@@ -58,10 +58,12 @@ PI_PAGES = 4  # pi_track_record scans up to this many pages of 25
 
 mcp = MCPServer("nsf-grant-intelligence")
 
+
 def _read_only(title: str) -> ToolAnnotations:
     """Every tool only reads from a public third-party API."""
-    return ToolAnnotations(title=title, readOnlyHint=True, destructiveHint=False,
-                           idempotentHint=True, openWorldHint=True)
+    return ToolAnnotations(
+        title=title, readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True
+    )
 
 
 LANDING_PAGE = """<!doctype html>
@@ -121,7 +123,7 @@ async def landing(request: Request) -> HTMLResponse:
     tools = await mcp.list_tools()
     items = "\n".join(
         f"<li><code>{html.escape(t.name)}</code><br>"
-        f"<span class=\"muted\">{html.escape(_summary(t.description))}</span></li>"
+        f'<span class="muted">{html.escape(_summary(t.description))}</span></li>'
         for t in tools
     )
     return HTMLResponse(
@@ -222,9 +224,7 @@ async def get_award(
 @mcp.tool(annotations=_read_only("Institution funding profile"))
 async def institution_profile(
     name: Annotated[str, Field(min_length=1, description='Institution name, e.g. "Carnegie Mellon".')],
-    keyword: Annotated[
-        str, Field(description="Optional topic to focus on, e.g. 'robotics'.")
-    ] = "",
+    keyword: Annotated[str, Field(description="Optional topic to focus on, e.g. 'robotics'.")] = "",
     from_year: FromYear = 2020,
     max_awards: Annotated[
         int, Field(ge=1, le=300, description="Sample size, spread evenly across start years.")
@@ -348,9 +348,7 @@ async def sample_winning_abstracts(
 ) -> WinningAbstracts:
     """Full abstracts, PIs and amounts of the largest recent awards on a topic,
     to study how funded proposals are written."""
-    awards = await sampling.collect(
-        keyword, fund_program_name, from_year, max_awards=max(n * 3, 25)
-    )
+    awards = await sampling.collect(keyword, fund_program_name, from_year, max_awards=max(n * 3, 25))
     # prefer the largest awards — they passed the toughest review
     awards.sort(key=lambda a: to_int(a.get("fundsObligatedAmt")) or 0, reverse=True)
     return WinningAbstracts(
@@ -388,9 +386,7 @@ async def compare_funding_by_program(
         b = by_prog.setdefault(p, {"awards": 0, "funds_obligated_usd": 0})
         b["awards"] += 1
         b["funds_obligated_usd"] += amt
-    ranked = sorted(
-        by_prog.items(), key=lambda kv: kv[1]["funds_obligated_usd"], reverse=True
-    )
+    ranked = sorted(by_prog.items(), key=lambda kv: kv[1]["funds_obligated_usd"], reverse=True)
     return ProgramComparison(
         keyword=keyword,
         from_year=from_year,
@@ -433,12 +429,8 @@ async def pi_track_record(last_name: LastName, first_name: FirstName = "") -> PI
         total_matching_awards=total,
         total_funds_obligated_usd=sum(amts),
         pi_names_matched=_counts(Counter(pi_name(a) for a in awards).most_common(5)),
-        programs=_counts(
-            Counter(a.get("fundProgramName") or "Unknown" for a in awards).most_common(5)
-        ),
-        institutions=_counts(
-            Counter(a.get("awardeeName") or "Unknown" for a in awards).most_common(3)
-        ),
+        programs=_counts(Counter(a.get("fundProgramName") or "Unknown" for a in awards).most_common(5)),
+        institutions=_counts(Counter(a.get("awardeeName") or "Unknown" for a in awards).most_common(3)),
         year_span=[years[0], years[-1]] if years else None,
         recent_awards=[AwardSummary(**trim_award(a, abstract_len=0)) for a in awards[:5]],
     )

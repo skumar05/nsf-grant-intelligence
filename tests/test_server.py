@@ -1,14 +1,12 @@
 import asyncio
 
 import httpx
-
 import pytest
-from pydantic import ValidationError
 
 from nsf_grant_intelligence import api, sampling, server, transform
 
-
 # --- helpers ---------------------------------------------------------------
+
 
 def test_to_int():
     assert transform.to_int("417136") == 417136
@@ -49,6 +47,7 @@ def test_trim_builds_compact_record():
 
 
 # --- tools (API mocked) ----------------------------------------------------
+
 
 @pytest.fixture
 def fake_api(monkeypatch):
@@ -93,12 +92,16 @@ def test_get_award_not_found(fake_api):
 
 
 def test_funding_trends_queries_each_year(fake_api):
-    calls = fake_api([
-        {"metadata": {"totalCount": "300"},
-         "award": [{"fundsObligatedAmt": "100"}, {"fundsObligatedAmt": "50"}]},
-        {"metadata": {"totalCount": "0"}, "award": []},
-        {"metadata": {"totalCount": "7"}, "award": [{"fundsObligatedAmt": "10"}]},
-    ])
+    calls = fake_api(
+        [
+            {
+                "metadata": {"totalCount": "300"},
+                "award": [{"fundsObligatedAmt": "100"}, {"fundsObligatedAmt": "50"}],
+            },
+            {"metadata": {"totalCount": "0"}, "award": []},
+            {"metadata": {"totalCount": "7"}, "award": [{"fundsObligatedAmt": "10"}]},
+        ]
+    )
     out = asyncio.run(server.funding_trends(keyword="ai", from_year=2024, to_year=2026))
     assert [c["startDateStart"] for c in calls] == ["01/01/2024", "01/01/2025", "01/01/2026"]
     assert {y: v.model_dump() for y, v in out.years.items()} == {
@@ -115,6 +118,7 @@ def test_funding_trends_surfaces_errors(fake_api):
 
 
 # --- proposal-analysis helpers & tools --------------------------------------
+
 
 def _award(i, amt, prog="Prog A", year=2025, pi=("Ada", "Lovelace"), abstract="x"):
     return {
@@ -158,10 +162,12 @@ def test_stats_empty():
 
 
 def test_collect_spreads_quota_across_years(fake_api):
-    calls = fake_api([
-        {"award": [_award(i, 1, year=2025) for i in range(25)]},
-        {"award": [_award(i, 1, year=2026) for i in range(25)]},
-    ])
+    calls = fake_api(
+        [
+            {"award": [_award(i, 1, year=2025) for i in range(25)]},
+            {"award": [_award(i, 1, year=2026) for i in range(25)]},
+        ]
+    )
     out = asyncio.run(sampling.collect("ai", from_year=2025, max_awards=10, to_year=2026))
     assert len(out) == 10
     # one request per year, each restricted to that year
@@ -178,10 +184,12 @@ def _year_of(a):
 
 
 def test_collect_pages_within_year_zero_based(fake_api):
-    calls = fake_api([
-        {"award": [_award(i, 1) for i in range(25)]},
-        {"award": [_award(99, 1)]},
-    ])
+    calls = fake_api(
+        [
+            {"award": [_award(i, 1) for i in range(25)]},
+            {"award": [_award(99, 1)]},
+        ]
+    )
     out = asyncio.run(sampling.collect("ai", from_year=2025, max_awards=100, to_year=2025))
     assert len(out) == 26
     assert [c["offset"] for c in calls] == [0, 25]
@@ -199,6 +207,7 @@ def test_collect_defaults_to_next_year(fake_api, monkeypatch):
         @staticmethod
         def today():
             import datetime
+
             return datetime.date(2026, 11, 16)
 
     monkeypatch.setattr(sampling, "date", FakeDate)
@@ -228,22 +237,34 @@ def test_analyze_topic_surfaces_errors(fake_api):
 
 
 def test_sample_winning_abstracts_sorted_by_funding(fake_api):
-    fake_api(_first_year_only({"award": [
-        _award(1, 10, abstract=" small "),
-        _award(2, 999, abstract="big"),
-        _award(3, 500, abstract="mid"),
-    ]}))
+    fake_api(
+        _first_year_only(
+            {
+                "award": [
+                    _award(1, 10, abstract=" small "),
+                    _award(2, 999, abstract="big"),
+                    _award(3, 500, abstract="mid"),
+                ]
+            }
+        )
+    )
     out = asyncio.run(server.sample_winning_abstracts("ai", n=2))
     assert [s.award_id for s in out.samples] == ["2", "3"]
     assert out.samples[0].abstract == "big"
 
 
 def test_compare_funding_by_program_ranks_by_dollars(fake_api):
-    fake_api(_first_year_only({"award": [
-        _award(1, 100, prog="A"),
-        _award(2, 100, prog="A"),
-        _award(3, 500, prog="B"),
-    ]}))
+    fake_api(
+        _first_year_only(
+            {
+                "award": [
+                    _award(1, 100, prog="A"),
+                    _award(2, 100, prog="A"),
+                    _award(3, 500, prog="B"),
+                ]
+            }
+        )
+    )
     out = asyncio.run(server.compare_funding_by_program("ai"))
     assert out.programs[0].model_dump() == {"program": "B", "awards": 1, "funds_obligated_usd": 500}
     assert out.programs[1].awards == 2
@@ -251,10 +272,14 @@ def test_compare_funding_by_program_ranks_by_dollars(fake_api):
 
 
 def test_pi_track_record(fake_api):
-    calls = fake_api([{
-        "metadata": {"totalCount": "40"},
-        "award": [_award(1, 100, year=2019), _award(2, 200, year=2024)],
-    }])
+    calls = fake_api(
+        [
+            {
+                "metadata": {"totalCount": "40"},
+                "award": [_award(1, 100, year=2019), _award(2, 200, year=2024)],
+            }
+        ]
+    )
     out = asyncio.run(server.pi_track_record("Lovelace", "Ada"))
     assert calls[0]["piLastName"] == "Lovelace"
     assert calls[0]["piFirstName"] == "Ada"
@@ -273,10 +298,16 @@ def test_pi_track_record_no_awards(fake_api):
 
 
 def test_extract_themes_counts_terms_and_skips_stopwords(fake_api):
-    fake_api(_first_year_only({"award": [
-        _award(1, 1, abstract="Quantum sensing and quantum networks"),
-        _award(2, 1, abstract="The quantum research of sensing"),
-    ]}))
+    fake_api(
+        _first_year_only(
+            {
+                "award": [
+                    _award(1, 1, abstract="Quantum sensing and quantum networks"),
+                    _award(2, 1, abstract="The quantum research of sensing"),
+                ]
+            }
+        )
+    )
     out = asyncio.run(server.extract_themes("quantum"))
     terms = {t.name: t.count for t in out.top_terms}
     assert terms["quantum"] == 3
@@ -286,6 +317,7 @@ def test_extract_themes_counts_terms_and_skips_stopwords(fake_api):
 
 
 # --- MCP surface: schemas, validation, annotations ---------------------------
+
 
 def test_every_tool_is_read_only_and_described():
     tools = asyncio.run(server.mcp.list_tools())
@@ -323,6 +355,7 @@ def test_tool_returns_structured_output(fake_api):
 
 
 # --- _api: retries, bad bodies, NSF's 200-with-error convention ----------------
+
 
 @pytest.fixture
 def http(monkeypatch):
@@ -385,6 +418,7 @@ def test_api_surfaces_service_notification(http):
 
 # --- year-range guard & PI ambiguity -----------------------------------------
 
+
 def test_year_range_rejects_reversed_and_huge_spans():
     assert sampling.year_range(2024, 2026) == [2024, 2025, 2026]
     with pytest.raises(api.NSFAPIError, match="before"):
@@ -394,11 +428,15 @@ def test_year_range_rejects_reversed_and_huge_spans():
 
 
 def test_pi_track_record_pages_and_flags_ambiguous_names(fake_api):
-    calls = fake_api([
-        {"metadata": {"totalCount": "30"},
-         "award": [_award(i, 1, pi=("Ada", "Smith")) for i in range(25)]},
-        {"award": [_award(99, 1, pi=("Bob", "Smith"))]},
-    ])
+    calls = fake_api(
+        [
+            {
+                "metadata": {"totalCount": "30"},
+                "award": [_award(i, 1, pi=("Ada", "Smith")) for i in range(25)],
+            },
+            {"award": [_award(99, 1, pi=("Bob", "Smith"))]},
+        ]
+    )
     out = asyncio.run(server.pi_track_record("Smith"))
     assert [c["offset"] for c in calls] == [0, 25]
     assert out.awards_found == 26
@@ -406,10 +444,16 @@ def test_pi_track_record_pages_and_flags_ambiguous_names(fake_api):
 
 
 def test_institution_profile_filters_by_awardee_and_summarizes(fake_api):
-    calls = fake_api(_first_year_only({"award": [
-        _award(1, 100, pi=("Ada", "Lovelace")),
-        _award(2, 50, pi=("Ada", "Lovelace")),
-    ]}))
+    calls = fake_api(
+        _first_year_only(
+            {
+                "award": [
+                    _award(1, 100, pi=("Ada", "Lovelace")),
+                    _award(2, 50, pi=("Ada", "Lovelace")),
+                ]
+            }
+        )
+    )
     out = asyncio.run(server.institution_profile("Univ", keyword="robotics", from_year=2025))
     assert all(c["awardeeName"] == '"Univ"' and c["keyword"] == "robotics" for c in calls)
     assert out.total_funds_obligated_usd == 150
@@ -496,7 +540,7 @@ def test_landing_page_escapes_host_header():
     from starlette.testclient import TestClient
 
     with TestClient(server.mcp.streamable_http_app()) as client:
-        r = client.get("/", headers={"host": "x\"><script>alert(1)</script>"})
+        r = client.get("/", headers={"host": 'x"><script>alert(1)</script>'})
     assert "<script>alert(1)" not in r.text
 
 

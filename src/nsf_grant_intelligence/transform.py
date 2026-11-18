@@ -52,9 +52,7 @@ def trim_award(a: dict, abstract_len: int = 280) -> dict:
         "title": a.get("title"),
         "pi": pi or a.get("pdPIName"),
         "institution": a.get("awardeeName"),
-        "location": ", ".join(
-            x for x in (a.get("awardeeCity"), a.get("awardeeStateCode")) if x
-        ),
+        "location": ", ".join(x for x in (a.get("awardeeCity"), a.get("awardeeStateCode")) if x),
         "funds_obligated_usd": to_int(a.get("fundsObligatedAmt")),
         "estimated_total_usd": to_int(a.get("estimatedTotalAmt")),
         "start_date": a.get("startDate"),
@@ -74,12 +72,8 @@ def award_stats(awards: list[dict]) -> dict:
         "awards_analyzed": len(awards),
         "total_funds_obligated_usd": sum(amts),
         "median_award_usd": int(median(amts)) if amts else None,
-        "top_programs": Counter(
-            a.get("fundProgramName") or "Unknown" for a in awards
-        ).most_common(5),
-        "top_institutions": Counter(
-            a.get("awardeeName") or "Unknown" for a in awards
-        ).most_common(5),
+        "top_programs": Counter(a.get("fundProgramName") or "Unknown" for a in awards).most_common(5),
+        "top_institutions": Counter(a.get("awardeeName") or "Unknown" for a in awards).most_common(5),
         "top_pis": Counter(pi_name(a) for a in awards).most_common(5),
         "awards_by_start_year": dict(sorted(years.items())),
     }

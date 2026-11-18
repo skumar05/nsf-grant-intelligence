@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "ruff>=0.6"]
 eval = ["anthropic>=0.40"]
 
 [project.scripts]
@@ -25,3 +25,17 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py313"
+exclude = [".venv", ".agents"]
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# Long lines here are an embedded HTML page and Markdown report tables.
+"src/nsf_grant_intelligence/server.py" = ["E501"]
+"eval/answer_eval.py" = ["E501"]

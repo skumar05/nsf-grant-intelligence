@@ -79,7 +79,8 @@ $7/month), `SCALE`. The service is public with no authentication, so anyone with
 .venv/bin/python -m pytest
 ```
 
-Tests mock the NSF API and run offline.
+Tests mock the NSF API and run offline. CI (`.github/workflows/ci.yml`) also runs `ruff check` and
+`ruff format --check`; run them locally with `.venv/bin/python -m ruff check .`.
 
 ## Evaluation
 

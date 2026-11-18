@@ -21,8 +21,7 @@ def year_range(from_year: int, to_year: int | None) -> list[int]:
         raise api.NSFAPIError(f"to_year ({to_year}) is before from_year ({from_year}).")
     if to_year - from_year + 1 > MAX_YEAR_SPAN:
         raise api.NSFAPIError(
-            f"Year range too wide ({to_year - from_year + 1} years, max {MAX_YEAR_SPAN}): "
-            "raise from_year."
+            f"Year range too wide ({to_year - from_year + 1} years, max {MAX_YEAR_SPAN}): raise from_year."
         )
     return list(range(from_year, to_year + 1))
 

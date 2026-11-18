@@ -19,9 +19,7 @@ ProgramName = Annotated[
     str,
     Field(description='NSF program name filter, e.g. "Robust Intelligence". Optional.'),
 ]
-FromYear = Annotated[
-    int, Field(ge=1950, le=2100, description="First award start year to include.")
-]
+FromYear = Annotated[int, Field(ge=1950, le=2100, description="First award start year to include.")]
 Page = Annotated[int, Field(ge=1, description="1-based page number.")]
 PerPage = Annotated[int, Field(ge=1, le=25, description="Results per page (NSF caps this at 25).")]
 LastName = Annotated[str, Field(min_length=1, description="Principal investigator's last name.")]
