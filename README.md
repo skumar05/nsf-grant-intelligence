@@ -34,6 +34,41 @@ Example prompts: "What does NSF fund in quantum sensing since 2023?", "Show me
 abstracts of recent funded AI-for-geoscience awards", "Which programs fund
 cybersecurity education?"
 
+## Repository structure
+
+```
+.
+├── src/nsf_grant_intelligence/   the server
+│   ├── app.py                    entry point: builds the MCP server, registers everything, picks the transport
+│   ├── tools/                    one module per tool (nine), plus _common.py helpers
+│   ├── prompts/                  the funding_landscape prompt
+│   ├── resources/                the nsf://api-notes resource
+│   ├── routes.py                 landing page, /health and /version (HTTP only)
+│   ├── config.py                 settings from env or .env (MCP_TRANSPORT, MCP_HOST, MCP_PORT)
+│   ├── api.py                    NSF API client: retries, errors, paging helpers
+│   ├── sampling.py               per-year sampling used by the analysis tools
+│   ├── transform.py              pure helpers over raw award records
+│   └── models.py                 Pydantic input types and structured outputs
+├── main.py                       root entry point for local runs (same server)
+├── tests/                        offline tests; the NSF API is mocked
+├── eval/                         evaluation
+│   ├── run_eval.py, answer_eval.py, dataset.json   live, tool-selection and answer layers
+│   ├── RESULTS.md, JUDGE_REVIEW.md, EVALUATION.docx   results, judge audit sheet, write-up
+│   └── phoenix/                  Arize Phoenix harness: agent, judges, prompts, gold questions
+├── deploy/                       deployment scripts
+│   └── aws-lightsail/            deploy and teardown for AWS Lightsail Containers
+├── presentation/                 slide deck and the demo video script
+├── Dockerfile                    container image (serves HTTP on port 8080)
+├── pyproject.toml                package metadata, dependencies, ruff config
+├── requirements.txt              runtime dependencies for platforms that expect one
+├── manifest.yaml                 cloud.gov manifest (untested)
+├── server.json                   MCP Registry manifest
+├── .mcp.json, .vscode/mcp.json   client registrations for Claude Code and VS Code
+├── .github/workflows/ci.yml      CI: ruff and pytest
+├── .env.example                  environment variables for the evals
+└── README.md, QUICKSTART.md, DEPLOYMENT.md, SECURITY.md, CLAUDE.md, LICENSE
+```
+
 ## Setup
 
 Requires Python 3.13+.
