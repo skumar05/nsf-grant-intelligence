@@ -56,6 +56,7 @@ The server speaks MCP over stdio:
 It's already registered for Claude Code (`.mcp.json`) and VS Code (`.vscode/mcp.json`).
 For other clients, use the venv's Python as the command with args `-m nsf_grant_intelligence`.
 
+To serve it over HTTP, set `PORT` (any value) or `MCP_TRANSPORT=streamable-http`; see [QUICKSTART.md](QUICKSTART.md).
 For any other host, see [DEPLOYMENT.md](DEPLOYMENT.md): build context, runtime contract, health check and verification steps.
 
 ## Deploy to AWS Lightsail Containers

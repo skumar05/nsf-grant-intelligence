@@ -48,10 +48,15 @@ Then ask: "What is the full abstract of NSF award 1753742?"
 ## 5. Try HTTP mode
 
 ```bash
-MCP_TRANSPORT=streamable-http .venv/bin/python -m nsf_grant_intelligence
+MCP_TRANSPORT=streamable-http .venv/bin/python -m nsf_grant_intelligence   # listens on MCP_HOST:MCP_PORT (0.0.0.0:8000)
+# or, as a hosting platform does it: any PORT value switches the server to HTTP
+PORT=8080 .venv/bin/python -m nsf_grant_intelligence
 curl http://localhost:8000/health    # {"status":"healthy","service":"nsf-grant-intelligence"}
 curl http://localhost:8000/version
 ```
+
+If `PORT` happens to be set in your shell, the server runs HTTP instead of stdio and a local MCP client
+will not connect. Unset it (`unset PORT`) for local use.
 
 ## Next steps
 

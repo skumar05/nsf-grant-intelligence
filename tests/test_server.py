@@ -3,7 +3,18 @@ import asyncio
 import httpx
 import pytest
 
-from nsf_grant_intelligence import api, sampling, server, transform
+from nsf_grant_intelligence import api, app, sampling, transform
+from nsf_grant_intelligence.tools import (
+    analyze_topic,
+    compare_funding_by_program,
+    extract_themes,
+    funding_trends,
+    get_award,
+    institution_profile,
+    pi_track_record,
+    sample_winning_abstracts,
+    search_awards,
+)
 
 # --- helpers ---------------------------------------------------------------
 
@@ -71,7 +82,7 @@ def fake_api(monkeypatch):
 
 def test_search_awards_maps_params(fake_api):
     calls = fake_api([{"metadata": {"totalCount": "3"}, "award": [{"id": "9"}]}])
-    out = asyncio.run(server.search_awards(keyword="ai", active_only=True, page=2))
+    out = asyncio.run(search_awards.search_awards(keyword="ai", active_only=True, page=2))
     assert calls[0]["keyword"] == "ai"
     assert calls[0]["ActiveAwards"] == "true"
     assert calls[0]["offset"] == 10
@@ -82,13 +93,13 @@ def test_search_awards_maps_params(fake_api):
 def test_search_awards_surfaces_errors(fake_api):
     fake_api([api.NSFAPIError("boom")])
     with pytest.raises(api.NSFAPIError, match="boom"):
-        asyncio.run(server.search_awards(keyword="x"))
+        asyncio.run(search_awards.search_awards(keyword="x"))
 
 
 def test_get_award_not_found(fake_api):
     fake_api([{"award": []}])
     with pytest.raises(api.NSFAPIError, match="No award found"):
-        asyncio.run(server.get_award("123"))
+        asyncio.run(get_award.get_award("123"))
 
 
 def test_funding_trends_queries_each_year(fake_api):
@@ -102,7 +113,7 @@ def test_funding_trends_queries_each_year(fake_api):
             {"metadata": {"totalCount": "7"}, "award": [{"fundsObligatedAmt": "10"}]},
         ]
     )
-    out = asyncio.run(server.funding_trends(keyword="ai", from_year=2024, to_year=2026))
+    out = asyncio.run(funding_trends.funding_trends(keyword="ai", from_year=2024, to_year=2026))
     assert [c["startDateStart"] for c in calls] == ["01/01/2024", "01/01/2025", "01/01/2026"]
     assert {y: v.model_dump() for y, v in out.years.items()} == {
         2024: {"awards": 300, "sampled_awards": 2, "sampled_funds_obligated_usd": 150},
@@ -114,7 +125,7 @@ def test_funding_trends_queries_each_year(fake_api):
 def test_funding_trends_surfaces_errors(fake_api):
     fake_api([api.NSFAPIError("boom")])
     with pytest.raises(api.NSFAPIError):
-        asyncio.run(server.funding_trends(keyword="ai", from_year=2025, to_year=2025))
+        asyncio.run(funding_trends.funding_trends(keyword="ai", from_year=2025, to_year=2025))
 
 
 # --- proposal-analysis helpers & tools --------------------------------------
@@ -224,7 +235,7 @@ def test_collect_surfaces_errors(fake_api):
 
 def test_analyze_topic(fake_api):
     fake_api(_first_year_only({"award": [_award(1, 100), _award(2, 50)]}))
-    out = asyncio.run(server.analyze_topic("ai", from_year=2025))
+    out = asyncio.run(analyze_topic.analyze_topic("ai", from_year=2025))
     assert out.keyword == "ai"
     assert out.total_funds_obligated_usd == 150
     assert out.from_year == 2025
@@ -233,7 +244,7 @@ def test_analyze_topic(fake_api):
 def test_analyze_topic_surfaces_errors(fake_api):
     fake_api([api.NSFAPIError("boom")])
     with pytest.raises(api.NSFAPIError):
-        asyncio.run(server.analyze_topic("ai"))
+        asyncio.run(analyze_topic.analyze_topic("ai"))
 
 
 def test_sample_winning_abstracts_sorted_by_funding(fake_api):
@@ -248,7 +259,7 @@ def test_sample_winning_abstracts_sorted_by_funding(fake_api):
             }
         )
     )
-    out = asyncio.run(server.sample_winning_abstracts("ai", n=2))
+    out = asyncio.run(sample_winning_abstracts.sample_winning_abstracts("ai", n=2))
     assert [s.award_id for s in out.samples] == ["2", "3"]
     assert out.samples[0].abstract == "big"
 
@@ -265,7 +276,7 @@ def test_compare_funding_by_program_ranks_by_dollars(fake_api):
             }
         )
     )
-    out = asyncio.run(server.compare_funding_by_program("ai"))
+    out = asyncio.run(compare_funding_by_program.compare_funding_by_program("ai"))
     assert out.programs[0].model_dump() == {"program": "B", "awards": 1, "funds_obligated_usd": 500}
     assert out.programs[1].awards == 2
     assert out.awards_scanned == 3
@@ -280,7 +291,7 @@ def test_pi_track_record(fake_api):
             }
         ]
     )
-    out = asyncio.run(server.pi_track_record("Lovelace", "Ada"))
+    out = asyncio.run(pi_track_record.pi_track_record("Lovelace", "Ada"))
     assert calls[0]["piLastName"] == "Lovelace"
     assert calls[0]["piFirstName"] == "Ada"
     assert calls[0]["offset"] == 0
@@ -292,7 +303,7 @@ def test_pi_track_record(fake_api):
 
 def test_pi_track_record_no_awards(fake_api):
     fake_api([{"award": []}])
-    out = asyncio.run(server.pi_track_record("Nobody"))
+    out = asyncio.run(pi_track_record.pi_track_record("Nobody"))
     assert out.awards_found == 0
     assert out.year_span is None
 
@@ -308,7 +319,7 @@ def test_extract_themes_counts_terms_and_skips_stopwords(fake_api):
             }
         )
     )
-    out = asyncio.run(server.extract_themes("quantum"))
+    out = asyncio.run(extract_themes.extract_themes("quantum"))
     terms = {t.name: t.count for t in out.top_terms}
     assert terms["quantum"] == 3
     assert terms["sensing"] == 2
@@ -320,7 +331,7 @@ def test_extract_themes_counts_terms_and_skips_stopwords(fake_api):
 
 
 def test_every_tool_is_read_only_and_described():
-    tools = asyncio.run(server.mcp.list_tools())
+    tools = asyncio.run(app.mcp.list_tools())
     assert len(tools) == 9
     for t in tools:
         assert t.annotations.read_only_hint is True
@@ -344,13 +355,13 @@ def test_every_tool_is_read_only_and_described():
 def test_invalid_arguments_are_rejected_before_any_api_call(tool, args, fake_api):
     calls = fake_api([])
     with pytest.raises(Exception, match="validation error"):
-        asyncio.run(server.mcp.call_tool(tool, args))
+        asyncio.run(app.mcp.call_tool(tool, args))
     assert calls == []
 
 
 def test_tool_returns_structured_output(fake_api):
     fake_api([{"metadata": {"totalCount": "1"}, "award": [{"id": "9", "title": "T"}]}])
-    result = asyncio.run(server.mcp.call_tool("search_awards", {"keyword": "ai"}))
+    result = asyncio.run(app.mcp.call_tool("search_awards", {"keyword": "ai"}))
     assert result.structured_content["awards"][0]["award_id"] == "9"
 
 
@@ -437,7 +448,7 @@ def test_pi_track_record_pages_and_flags_ambiguous_names(fake_api):
             {"award": [_award(99, 1, pi=("Bob", "Smith"))]},
         ]
     )
-    out = asyncio.run(server.pi_track_record("Smith"))
+    out = asyncio.run(pi_track_record.pi_track_record("Smith"))
     assert [c["offset"] for c in calls] == [0, 25]
     assert out.awards_found == 26
     assert {n.name for n in out.pi_names_matched} == {"Ada Smith", "Bob Smith"}
@@ -454,7 +465,7 @@ def test_institution_profile_filters_by_awardee_and_summarizes(fake_api):
             }
         )
     )
-    out = asyncio.run(server.institution_profile("Univ", keyword="robotics", from_year=2025))
+    out = asyncio.run(institution_profile.institution_profile("Univ", keyword="robotics", from_year=2025))
     assert all(c["awardeeName"] == '"Univ"' and c["keyword"] == "robotics" for c in calls)
     assert out.total_funds_obligated_usd == 150
     assert out.top_pis[0].name == "Ada Lovelace" and out.top_pis[0].count == 2
@@ -462,16 +473,16 @@ def test_institution_profile_filters_by_awardee_and_summarizes(fake_api):
 
 
 def test_overlapping_wrapper_tools_are_gone():
-    names = {t.name for t in asyncio.run(server.mcp.list_tools())}
+    names = {t.name for t in asyncio.run(app.mcp.list_tools())}
     assert not {"awards_by_pi", "awards_by_institution"} & names
     assert {"search_awards", "pi_track_record", "institution_profile"} <= names
 
 
 def test_institution_names_are_sent_as_quoted_phrases(fake_api):
     calls = fake_api([{"award": []}] * 4)
-    asyncio.run(server.search_awards(awardee_name="Carnegie Mellon University"))
-    asyncio.run(server.search_awards(awardee_name='"Johns Hopkins"'))
-    asyncio.run(server.institution_profile("Rochester", from_year=2027, max_awards=1))
+    asyncio.run(search_awards.search_awards(awardee_name="Carnegie Mellon University"))
+    asyncio.run(search_awards.search_awards(awardee_name='"Johns Hopkins"'))
+    asyncio.run(institution_profile.institution_profile("Rochester", from_year=2027, max_awards=1))
     assert calls[0]["awardeeName"] == '"Carnegie Mellon University"'
     assert calls[1]["awardeeName"] == '"Johns Hopkins"'
     assert calls[2]["awardeeName"] == '"Rochester"'
@@ -480,7 +491,7 @@ def test_institution_names_are_sent_as_quoted_phrases(fake_api):
 def test_health_endpoint_reports_healthy():
     from starlette.testclient import TestClient
 
-    with TestClient(server.mcp.streamable_http_app()) as client:
+    with TestClient(app.mcp.streamable_http_app()) as client:
         r = client.get("/health")
     assert r.status_code == 200
     assert r.json() == {"status": "healthy", "service": "nsf-grant-intelligence"}
@@ -491,13 +502,13 @@ def test_version_endpoint_reports_package_version():
 
     from nsf_grant_intelligence import __version__
 
-    with TestClient(server.mcp.streamable_http_app()) as client:
+    with TestClient(app.mcp.streamable_http_app()) as client:
         r = client.get("/version")
     assert r.status_code == 200 and r.json() == {"version": __version__}
 
 
 def test_every_tool_has_a_title_and_safe_annotations():
-    for tool in asyncio.run(server.mcp.list_tools()):
+    for tool in asyncio.run(app.mcp.list_tools()):
         a = tool.annotations
         assert a.title, tool.name
         assert a.read_only_hint and a.idempotent_hint and a.open_world_hint, tool.name
@@ -528,18 +539,18 @@ def test_httpx_request_logging_is_quiet():
 def test_landing_page_lists_tools_and_the_mcp_url():
     from starlette.testclient import TestClient
 
-    with TestClient(server.mcp.streamable_http_app(), base_url="https://demo.example.com") as client:
+    with TestClient(app.mcp.streamable_http_app(), base_url="https://demo.example.com") as client:
         r = client.get("/", headers={"x-forwarded-proto": "https"})
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
     assert "https://demo.example.com/mcp" in r.text
-    names = [t.name for t in asyncio.run(server.mcp.list_tools())]
+    names = [t.name for t in asyncio.run(app.mcp.list_tools())]
     assert all(f"<code>{n}</code>" in r.text for n in names)
 
 
 def test_landing_page_escapes_host_header():
     from starlette.testclient import TestClient
 
-    with TestClient(server.mcp.streamable_http_app()) as client:
+    with TestClient(app.mcp.streamable_http_app()) as client:
         r = client.get("/", headers={"host": 'x"><script>alert(1)</script>'})
     assert "<script>alert(1)" not in r.text
 
@@ -547,8 +558,68 @@ def test_landing_page_escapes_host_header():
 def test_landing_page_descriptions_are_whole_sentences():
     from starlette.testclient import TestClient
 
-    with TestClient(server.mcp.streamable_http_app()) as client:
+    with TestClient(app.mcp.streamable_http_app()) as client:
         r = client.get("/")
-    for tool in asyncio.run(server.mcp.list_tools()):
+    for tool in asyncio.run(app.mcp.list_tools()):
         first = " ".join(tool.description.strip().split("\n\n")[0].split())
         assert first.replace("'", "&#x27;") in r.text, tool.name
+
+
+# ---- structure: transport selection, prompts, resources, registration ----
+
+
+def test_run_args_defaults_to_stdio():
+    assert app.run_args({}, app.Settings(mcp_transport="stdio")) == ("stdio", {})
+
+
+def test_run_args_uses_the_platform_port():
+    t, kw = app.run_args({"PORT": "8080"}, app.Settings())
+    assert t == "streamable-http" and kw["port"] == 8080 and kw["host"] == "0.0.0.0"
+    assert kw["stateless_http"] is True
+
+
+def test_run_args_prefers_databricks_port():
+    _, kw = app.run_args({"PORT": "8080", "DATABRICKS_APP_PORT": "9000"}, app.Settings())
+    assert kw["port"] == 9000
+
+
+def test_run_args_honours_mcp_transport_setting():
+    cfg = app.Settings(mcp_transport="streamable-http", mcp_host="127.0.0.1", mcp_port=8123)
+    assert app.run_args({}, cfg) == (
+        "streamable-http",
+        {"host": "127.0.0.1", "port": 8123, "stateless_http": True},
+    )
+
+
+def test_registration_builds_on_a_fresh_server():
+    from mcp.server.mcpserver import MCPServer
+
+    from nsf_grant_intelligence.prompts import register_prompts
+    from nsf_grant_intelligence.resources import register_resources
+    from nsf_grant_intelligence.tools import register_tools
+
+    fresh = MCPServer("test")
+    register_tools(fresh)
+    register_prompts(fresh)
+    register_resources(fresh)
+    assert len(asyncio.run(fresh.list_tools())) == 9
+
+
+def test_server_has_instructions_and_the_documented_extras():
+    assert "NSF" in app.mcp.instructions
+    assert [p.name for p in asyncio.run(app.mcp.list_prompts())] == ["funding_landscape"]
+    assert [str(r.uri) for r in asyncio.run(app.mcp.list_resources())] == ["nsf://api-notes"]
+
+
+def test_funding_landscape_prompt_names_the_tools():
+    result = asyncio.run(app.mcp.get_prompt("funding_landscape", {"topic": "coral reefs"}))
+    text = result.messages[0].content.text
+    assert "coral reefs" in text
+    tool_names = {t.name for t in asyncio.run(app.mcp.list_tools())}
+    mentioned = {n for n in tool_names if n in text}
+    assert {"compare_funding_by_program", "analyze_topic", "funding_trends"} <= mentioned
+
+
+def test_api_notes_resource_is_readable():
+    contents = asyncio.run(app.mcp.read_resource("nsf://api-notes"))
+    assert "10,000" in contents[0].content and contents[0].mime_type == "text/markdown"

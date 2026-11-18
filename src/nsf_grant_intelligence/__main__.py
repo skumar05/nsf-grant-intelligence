@@ -1,3 +1,3 @@
-from nsf_grant_intelligence.server import main
+from nsf_grant_intelligence.app import main
 
 main()

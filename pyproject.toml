@@ -7,6 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "mcp>=2.3",
     "httpx>=0.28",
+    "pydantic-settings>=2",
 ]
 
 [project.optional-dependencies]
@@ -14,7 +15,7 @@ dev = ["pytest>=8", "ruff>=0.6"]
 eval = ["anthropic>=0.40"]
 
 [project.scripts]
-nsf-grant-intelligence = "nsf_grant_intelligence.server:main"
+nsf-grant-intelligence = "nsf_grant_intelligence.app:main"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -37,5 +38,5 @@ select = ["E", "F", "I"]
 
 [tool.ruff.lint.per-file-ignores]
 # Long lines here are an embedded HTML page and Markdown report tables.
-"src/nsf_grant_intelligence/server.py" = ["E501"]
+"src/nsf_grant_intelligence/routes.py" = ["E501"]
 "eval/answer_eval.py" = ["E501"]
