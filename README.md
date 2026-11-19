@@ -57,7 +57,6 @@ Example prompts: "How much NSF funding has Carnegie Mellon won for robotics sinc
 ├── pyproject.toml                package metadata, dependencies, ruff config
 ├── requirements.txt              runtime dependencies for platforms that expect one
 ├── manifest.yaml                 cloud.gov manifest (untested)
-├── server.json                   MCP Registry manifest
 ├── .mcp.json, .vscode/mcp.json   client registrations for Claude Code and VS Code
 ├── .github/workflows/ci.yml      CI: ruff and pytest
 ├── .env.example                  environment variables for the evals
@@ -89,13 +88,6 @@ For other clients, use the venv's Python as the command with args `-m nsf_grant_
 To serve it over HTTP, set `PORT` (any value) or `MCP_TRANSPORT=streamable-http`; see [QUICKSTART.md](QUICKSTART.md).
 For any other host, see [DEPLOYMENT.md](DEPLOYMENT.md): build context, runtime contract, health check and verification steps.
 
-## Hosted instance
-
-A live instance runs on AWS Lightsail Containers at
-`https://nsf-grant-intelligence.svyw8btrxggzc.us-east-1.cs.amazonlightsail.com/mcp`
-(last redeployed 2026-11-18). It is open to anyone and may be taken down at any time. It is built from the
-repo's `Dockerfile`, with an HTTP health check on `/health`, and has no authentication, so anyone with the URL can
-call the tools.
 
 ## Test
 
