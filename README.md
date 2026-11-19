@@ -53,8 +53,6 @@ Example prompts: "How much NSF funding has Carnegie Mellon won for robotics sinc
 │   ├── run_eval.py, answer_eval.py, dataset.json   live, tool-selection and answer layers
 │   ├── RESULTS.md, JUDGE_REVIEW.md, JUDGE_AUDIT.md, EVALUATION.docx   results, review sheet, its audit, write-up
 │   └── phoenix/                  Arize Phoenix harness: agent, judges, prompts, gold questions
-├── deploy/                       deployment scripts
-│   └── aws-lightsail/            deploy and teardown for AWS Lightsail Containers
 ├── Dockerfile                    container image (serves HTTP on port 8080)
 ├── pyproject.toml                package metadata, dependencies, ruff config
 ├── requirements.txt              runtime dependencies for platforms that expect one
@@ -91,23 +89,13 @@ For other clients, use the venv's Python as the command with args `-m nsf_grant_
 To serve it over HTTP, set `PORT` (any value) or `MCP_TRANSPORT=streamable-http`; see [QUICKSTART.md](QUICKSTART.md).
 For any other host, see [DEPLOYMENT.md](DEPLOYMENT.md): build context, runtime contract, health check and verification steps.
 
-## Deploy to AWS Lightsail Containers
+## Hosted instance
 
-`deploy/aws-lightsail/lightsail.sh` builds the image (`linux/amd64`), pushes it to Lightsail, and creates or updates a
-container service with an HTTPS endpoint and an HTTP health check on `/health`. It needs the `aws` CLI with
-credentials, a running Docker daemon, and the `lightsailctl` plugin (the script prints the install command).
-
-```bash
-DRY_RUN=1 deploy/aws-lightsail/lightsail.sh   # print every command without running anything
-deploy/aws-lightsail/lightsail.sh             # deploy; prints the MCP endpoint, https://<service-url>/mcp
-deploy/aws-lightsail/lightsail-teardown.sh    # delete the service and stop billing
-```
-
-A live instance runs at `https://nsf-grant-intelligence.svyw8btrxggzc.us-east-1.cs.amazonlightsail.com/mcp`
-(last redeployed 2026-11-18). It is open to anyone and may be taken down at any time.
-
-Optional variables: `AWS_REGION` (default `us-east-1`), `SERVICE_NAME`, `POWER` (default `nano`, about
-$7/month), `SCALE`. The service is public with no authentication, so anyone with the URL can call the tools.
+A live instance runs on AWS Lightsail Containers at
+`https://nsf-grant-intelligence.svyw8btrxggzc.us-east-1.cs.amazonlightsail.com/mcp`
+(last redeployed 2026-11-18). It is open to anyone and may be taken down at any time. It is built from the
+repo's `Dockerfile`, with an HTTP health check on `/health`, and has no authentication, so anyone with the URL can
+call the tools.
 
 ## Test
 

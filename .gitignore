@@ -11,3 +11,4 @@ dist/
 .venv-eval/
 .venv-phoenix/
 presentation/
+deploy/

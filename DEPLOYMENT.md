@@ -6,7 +6,7 @@ The only outside dependency is the public NSF Award API (`https://api.nsf.gov`).
 ## What you need
 
 Build context: `Dockerfile`, `pyproject.toml`, `README.md` and the `src/` folder. Nothing else is required
-(`eval/`, `tests/` and `deploy/` are not used by the image).
+(`eval/` and `tests/` are not used by the image).
 
 ```bash
 # Build for x86-64 (use linux/arm64 instead if your platform runs ARM)
