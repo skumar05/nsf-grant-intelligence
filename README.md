@@ -30,9 +30,7 @@ These mine what actually gets funded. Each samples awards from `from_year` onwar
 | `pi_track_record` | A PI's NSF history: award count, total funding, programs, institutions, year span, recent awards, and which distinct names matched |
 | `extract_themes` | Most frequent substantive terms across funded abstracts for a topic |
 
-Example prompts: "What does NSF fund in quantum sensing since 2023?", "Show me
-abstracts of recent funded AI-for-geoscience awards", "Which programs fund
-cybersecurity education?"
+Example prompts: "How much NSF funding has Carnegie Mellon won for robotics since 2021, and which programs fund it?", "Show me 3 abstracts of recent funded wildfire awards so I can see how winning proposals read", "What vocabulary do funded CRISPR abstracts share?"
 
 ## Repository structure
 
