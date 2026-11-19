@@ -30,7 +30,23 @@ These mine what actually gets funded. Each samples awards from `from_year` onwar
 | `pi_track_record` | A PI's NSF history: award count, total funding, programs, institutions, year span, recent awards, and which distinct names matched |
 | `extract_themes` | Most frequent substantive terms across funded abstracts for a topic |
 
-Example prompts: "How much NSF funding has Carnegie Mellon won for robotics since 2021, and which programs fund it?", "Show me 3 abstracts of recent funded wildfire awards so I can see how winning proposals read", "What vocabulary do funded CRISPR abstracts share?"
+## Sample prompts
+
+Ask in plain language; the assistant picks the tool. One prompt for each tool:
+
+| Goal | Sample prompt | Tool |
+|---|---|---|
+| Look up one award | What is the full abstract of NSF award 1753742? | `get_award` |
+| Search awards | Find NSF awards about CRISPR that started in 2018. | `search_awards` |
+| Profile a PI | What NSF grants has Keith Nehrke received? | `pi_track_record` |
+| Profile an institution | How much NSF funding has Carnegie Mellon won for robotics since 2021, and which programs fund it? | `institution_profile` |
+| See a trend | How has NSF funding for microplastics research changed year by year since 2019? | `funding_trends` |
+| Analyze a topic | What does NSF fund in quantum sensing since 2023? Who are the top institutions? | `analyze_topic` |
+| Study winning proposals | Show me 3 abstracts of recent funded wildfire awards so I can see how winning proposals read | `sample_winning_abstracts` |
+| Decide where to submit | Which NSF programs fund cybersecurity education, and where should I submit? | `compare_funding_by_program` |
+| Find shared vocabulary | What vocabulary do funded CRISPR abstracts share? | `extract_themes` |
+
+The tool column shows the tool each prompt is expected to call. Some prompts may call more than one.
 
 ## Repository structure
 

@@ -36,7 +36,14 @@ Use the full path to the venv's Python as the command.
 }
 ```
 
-Then ask: "What is the full abstract of NSF award 1753742?"
+Then try a few prompts:
+
+- "What is the full abstract of NSF award 1753742?" (a quick check that the server is connected)
+- "Find NSF awards about CRISPR that started in 2018."
+- "How has NSF funding for microplastics research changed year by year since 2019?"
+- "Which NSF programs fund cybersecurity education, and where should I submit?"
+
+The README has a [full list](README.md#sample-prompts), one for each tool.
 
 ## 4. Verify
 
