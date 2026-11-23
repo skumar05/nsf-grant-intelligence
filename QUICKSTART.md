@@ -68,4 +68,4 @@ will not connect. Unset it (`unset PORT`) for local use.
 ## Next steps
 
 - Deploy: [DEPLOYMENT.md](DEPLOYMENT.md) (runtime contract for any host).
-- Evaluate: [eval/RESULTS.md](eval/RESULTS.md) and `eval/run_eval.py`.
+- Evaluate: [eval/phoenix/README.md](eval/phoenix/README.md) and [eval/phoenix/RESULTS.md](eval/phoenix/RESULTS.md).

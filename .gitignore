@@ -13,3 +13,5 @@ dist/
 presentation/
 deploy/
 server.json
+eval/*
+!eval/phoenix/

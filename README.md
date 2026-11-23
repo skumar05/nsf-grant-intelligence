@@ -65,10 +65,7 @@ The tool column shows the tool each prompt is expected to call. Some prompts may
 │   └── models.py                 Pydantic input types and structured outputs
 ├── main.py                       root entry point for local runs (same server)
 ├── tests/                        offline tests; the NSF API is mocked
-├── eval/                         evaluation
-│   ├── run_eval.py, answer_eval.py, dataset.json   live, tool-selection and answer layers
-│   ├── RESULTS.md, JUDGE_REVIEW.md, JUDGE_AUDIT.md, EVALUATION.docx   results, review sheet, its audit, write-up
-│   └── phoenix/                  Arize Phoenix harness: agent, judges, prompts, gold questions
+├── eval/phoenix/                 Arize Phoenix evaluation: agent, judges, prompts, gold questions, results
 ├── Dockerfile                    container image (serves HTTP on port 8080)
 ├── pyproject.toml                package metadata, dependencies, ruff config
 ├── requirements.txt              runtime dependencies for platforms that expect one
@@ -116,28 +113,12 @@ Tests mock the NSF API and run offline. CI (`.github/workflows/ci.yml`) also run
 
 ## Evaluation
 
-`eval/run_eval.py` runs three layers and writes `eval/RESULTS.md` and `eval/results.json`:
-
-- **live**: 21 cases that call every tool through the MCP layer against the real NSF API
-  (known-fact lookups, analysis invariants, error handling, invalid arguments), repeated
-  3 times for consistency and latency.
-- **selection**: 25 prompts (18 in-scope, 7 out-of-scope or injection) checking that a Claude
-  model picks the right tool, or none, and passes the right arguments on 14 of them. Needs `ANTHROPIC_API_KEY` (set it in a git-ignored `.env`; see `.env.example`) and `pip install -e ".[eval]"`.
-- **answer**: 20 questions an agent answers end to end, scored by two LLM judges (correctness against reference
-  answers taken from raw NSF API calls, and scope adherence), run with the tools and again with no tools as a
-  baseline. A second model (claude-opus-5-5) re-grades every answer, and `eval/JUDGE_REVIEW.md` lists items for a
-  human to audit. `eval/answer_eval.py`. Claude rechecked the 20 first-run answers on that sheet against the live API
-  and found all verdicts correct ([eval/JUDGE_AUDIT.md](eval/JUDGE_AUDIT.md)); that is not a human review.
-
-```bash
-.venv/bin/python eval/run_eval.py --repeats 3
-```
-
-Cases live in `eval/dataset.json`. Latest results: [eval/RESULTS.md](eval/RESULTS.md).
-
-A second harness in [`eval/phoenix/`](eval/phoenix/README.md) follows the hackathon template's Arize Phoenix layout: a
-LangChain agent over stdio, 10 multi-step gold questions (`evaluation.xml`), and `match_expected_response` and
-`check_answer_scope` judges with a separate judge model. It needs its own virtual environment. Latest results:
+[`eval/phoenix/`](eval/phoenix/README.md) follows the hackathon template's Arize Phoenix layout: a LangChain agent
+connects to the server over stdio and answers 10 multi-step gold questions (`evaluation.xml`), and two LLM judges,
+`match_expected_response` and `check_answer_scope`, score each answer with a separate judge model. Two system
+prompts were compared. Both scored 10/10 correct and 10/10 in scope, from one run each; the agent is not
+deterministic, and the dataset is small and written by the people who built the server. It needs its own virtual
+environment; see the harness README for the run commands. Latest results:
 [eval/phoenix/RESULTS.md](eval/phoenix/RESULTS.md).
 
 ## Caveats

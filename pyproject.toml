@@ -14,7 +14,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
-eval = ["anthropic>=0.40"]
 
 [project.scripts]
 nsf-grant-intelligence = "nsf_grant_intelligence.app:main"
@@ -41,4 +40,3 @@ select = ["E", "F", "I"]
 [tool.ruff.lint.per-file-ignores]
 # Long lines here are an embedded HTML page and Markdown report tables.
 "src/nsf_grant_intelligence/routes.py" = ["E501"]
-"eval/answer_eval.py" = ["E501"]

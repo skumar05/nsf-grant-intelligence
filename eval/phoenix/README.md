@@ -3,8 +3,7 @@
 An [Arize Phoenix](https://docs.arize.com/phoenix) harness in the layout the hackathon template's `mcp-eval`
 skill describes. A LangChain agent connects to this MCP server over stdio, answers a dataset of multi-step
 questions with known answers, and two LLM judges score each answer. Traces and experiments are browsable in
-the Phoenix UI. It complements the self-contained harness in `eval/run_eval.py` (live, selection and
-answer layers), which needs no Phoenix.
+the Phoenix UI.
 
 ## Layout
 
