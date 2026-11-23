@@ -69,11 +69,10 @@ The tool column shows the tool each prompt is expected to call. Some prompts may
 ├── Dockerfile                    container image (serves HTTP on port 8080)
 ├── pyproject.toml                package metadata, dependencies, ruff config
 ├── requirements.txt              runtime dependencies for platforms that expect one
-├── manifest.yaml                 cloud.gov manifest (untested)
 ├── .mcp.json, .vscode/mcp.json   client registrations for Claude Code and VS Code
 ├── .github/workflows/ci.yml      CI: ruff and pytest
 ├── .env.example                  environment variables for the evals
-└── README.md, QUICKSTART.md, DEPLOYMENT.md, SECURITY.md, CLAUDE.md, LICENSE
+└── README.md, QUICKSTART.md, DEPLOYMENT.md, SECURITY.md, LICENSE
 ```
 
 ## Setup

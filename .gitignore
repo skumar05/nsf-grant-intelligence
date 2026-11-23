@@ -15,3 +15,6 @@ deploy/
 server.json
 eval/*
 !eval/phoenix/
+CLAUDE.md
+manifest.yaml
+.vscode/settings.json
